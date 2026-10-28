@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "codewalk-out",
+      "runtimeExecutable": "uv",
+      "runtimeArgs": ["run", "codewalk", "serve", "out", "--port", "8731"],
+      "port": 8731
+    }
+  ]
+}
