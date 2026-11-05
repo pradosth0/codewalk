@@ -35,6 +35,7 @@ class Target:
     label: str
     query: str  # value of the ?step= parameter
     filename: str
+    level: int = 1
 
 
 def resolve_page(path: Union[str, os.PathLike]) -> Path:
@@ -68,14 +69,24 @@ def all_targets(recording: dict[str, Any]) -> list[Target]:
         targets.append(Target(0, "intro", "intro", "0", "00-intro.png"))
     for i, step in enumerate(recording.get("steps", []), start=1):
         step_id = str(step["id"])
-        targets.append(Target(i, step_id, str(step.get("label", i)), step_id, f"{i:02d}-{_safe_name(step_id)}.png"))
+        targets.append(
+            Target(i, step_id, str(step.get("label", i)), step_id, f"{i:02d}-{_safe_name(step_id)}.png", int(step.get("level", 1)))
+        )
     return targets
 
 
-def select_targets(recording: dict[str, Any], steps: Optional[Iterable[str]] = None, *, all_steps: bool = False) -> list[Target]:
-    """Targets for `--all`, or for each requested step id, label or position."""
+def select_targets(
+    recording: dict[str, Any],
+    steps: Optional[Iterable[str]] = None,
+    *,
+    all_steps: bool = False,
+    max_level: Optional[int] = None,
+) -> list[Target]:
+    """Targets for `--all` (optionally only steps up to `max_level`), or for each requested step id, label or position."""
     available = all_targets(recording)
     if all_steps:
+        if max_level is not None:
+            return [t for t in available if t.position == 0 or t.level <= max_level]
         return available
     chosen: list[Target] = []
     for name in steps or []:
@@ -103,6 +114,7 @@ def screenshot(
     *,
     steps: Optional[Iterable[str]] = None,
     all_steps: bool = False,
+    max_level: Optional[int] = None,
     out: Union[str, os.PathLike, None] = None,
     width: int = DEFAULT_WIDTH,
     height: int = DEFAULT_HEIGHT,
@@ -117,7 +129,7 @@ def screenshot(
     """
     page_file = resolve_page(page_path)
     recording = read_recording(page_file)
-    targets = select_targets(recording, steps, all_steps=all_steps)
+    targets = select_targets(recording, steps, all_steps=all_steps, max_level=max_level)
     try:
         from playwright.sync_api import Error as PlaywrightError
         from playwright.sync_api import sync_playwright

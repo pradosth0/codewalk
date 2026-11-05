@@ -1,12 +1,12 @@
 {
- "version": 1,
+ "version": 2,
  "title": "How the demo pipeline trains a rentals model",
- "description": "`run.py` reads a daily bike-rental export, cleans it, turns it into a numeric\nmatrix, fits a linear model by gradient descent and reports how well it fits.\n\nThis walkthrough stops at each stage and shows the objects as they are at that\nmoment: the frame, the design matrix, the weights while they are still moving,\nand the final metrics. Use **Next** (or the right arrow key) to step through it.",
+ "description": "`run.py` reads a daily bike-rental export, cleans it, turns it into a numeric\nmatrix, fits a linear model by gradient descent and reports how well it fits.\n\n**Next** walks the six key steps, one per stage, each showing that stage's\nresult. Press **Down** (or ↓) on a key step to see how it was produced, step by\nstep, and **Up** (↑) to come back to the summary. \"Walk at 3\" visits everything.",
  "entry": "run.py --epochs 120",
- "recorded_at": "2026-10-28T12:21:39+00:00",
+ "recorded_at": "2026-11-05T13:37:10+00:00",
  "python": "3.14.4",
  "backend": "monitoring",
- "duration": 1.8416,
+ "duration": 1.0201,
  "schema": {
   "kind": "mermaid",
   "source": "flowchart LR\n  raw[(data/raw.csv)] --> load[Load] --> clean[Clean] --> feats[Features]\n  feats --> train[Train] --> eval[Evaluate] --> report[Report]\n",
@@ -20,6 +20,11 @@
    "report"
   ]
  },
+ "levels": [
+  "Overview",
+  "Walkthrough",
+  "Line by line"
+ ],
  "warnings": [],
  "steps": [
   {
@@ -36,11 +41,13 @@
     "function": "load_csv",
     "mode": "return",
     "hit": 1,
-    "elapsed": 1.406
+    "elapsed": 0.5426
    },
    "highlight": [
     "load"
    ],
+   "level": 1,
+   "parent": null,
    "code": {
     "file": "demo/load.py",
     "start": 8,
@@ -394,11 +401,13 @@
     "function": "clean",
     "mode": "after",
     "hit": 1,
-    "elapsed": 1.41
+    "elapsed": 0.5495
    },
    "highlight": [
     "clean"
    ],
+   "level": 2,
+   "parent": "clean",
    "code": {
     "file": "demo/clean.py",
     "start": 14,
@@ -464,11 +473,13 @@
     "function": "clean",
     "mode": "before",
     "hit": 1,
-    "elapsed": 1.4103
+    "elapsed": 0.5515
    },
    "highlight": [
     "clean"
    ],
+   "level": 2,
+   "parent": "clean",
    "code": {
     "file": "demo/clean.py",
     "start": 14,
@@ -661,12 +672,256 @@
    "console": ""
   },
   {
-   "id": "missing",
-   "spec_id": "missing",
+   "id": "fill.1",
+   "spec_id": "fill",
    "index": 4,
-   "label": "4",
+   "label": "4.1",
    "kind": "step",
-   "title": "Fill missing sensor readings",
+   "title": "Fill a sensor column (hit 1)",
+   "location": {
+    "file": "demo/clean.py",
+    "line": 28,
+    "paused_line": 25,
+    "function": "clean",
+    "mode": "after",
+    "hit": 1,
+    "elapsed": 0.5562
+   },
+   "highlight": [
+    "clean"
+   ],
+   "level": 2,
+   "parent": "clean",
+   "code": {
+    "file": "demo/clean.py",
+    "start": 14,
+    "end": 30,
+    "current": 28,
+    "focus": [
+     [
+      25,
+      28
+     ]
+    ],
+    "source": "def clean(raw: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, int]]:\n    \"\"\"Return a cleaned copy of `raw` and a report of what was changed.\"\"\"\n    report: dict[str, int] = {}\n\n    df = raw.drop_duplicates()\n    report[\"duplicates\"] = len(raw) - len(df)\n\n    outliers = df[\"rentals\"] > MAX_RENTALS\n    report[\"outliers\"] = int(outliers.sum())\n    df = df[~outliers].copy()\n\n    for column in SENSORS:\n        missing = df[column].isna()\n        report[f\"missing_{column}\"] = int(missing.sum())\n        df[column] = df[column].fillna(df[column].median())\n\n    return df.reset_index(drop=True), report"
+   },
+   "objects": [
+    {
+     "name": "column",
+     "expr": "column",
+     "display": {
+      "kind": "json",
+      "value": "temp_c",
+      "type": "str"
+     }
+    },
+    {
+     "name": "gaps",
+     "expr": "int(missing.sum())",
+     "display": {
+      "kind": "json",
+      "value": 7,
+      "type": "int"
+     }
+    },
+    {
+     "name": "median",
+     "expr": "round(df[column].median(), 1)",
+     "display": {
+      "kind": "json",
+      "value": 18.3,
+      "type": "numpy.float64"
+     }
+    },
+    {
+     "name": "filled",
+     "expr": "df[column].describe()",
+     "display": {
+      "kind": "table",
+      "columns": [
+       "temp_c"
+      ],
+      "index": [
+       "count",
+       "mean",
+       "std",
+       "min",
+       "25%",
+       "50%",
+       "75%",
+       "max"
+      ],
+      "index_name": null,
+      "rows": [
+       [
+        178.0
+       ],
+       [
+        17.044382022471908
+       ],
+       [
+        5.27228087843809
+       ],
+       [
+        3.8
+       ],
+       [
+        14.125
+       ],
+       [
+        18.3
+       ],
+       [
+        20.775
+       ],
+       [
+        28.3
+       ]
+      ],
+      "shape": [
+       8,
+       1
+      ],
+      "dtypes": {
+       "temp_c": "float64"
+      },
+      "truncated": false,
+      "type": "pandas.Series"
+     }
+    }
+   ],
+   "text": "Column `temp_c`: 7 empty readings were replaced with the column's\nmedian, 18.3.\n\nThe median is robust to the odd extreme reading, and filling rather than dropping\nkeeps the day's other columns. `filled` is `describe()` of the column after the\nfill: the count now matches the number of rows.",
+   "console": ""
+  },
+  {
+   "id": "fill.2",
+   "spec_id": "fill",
+   "index": 5,
+   "label": "4.2",
+   "kind": "step",
+   "title": "Fill a sensor column (hit 2)",
+   "location": {
+    "file": "demo/clean.py",
+    "line": 28,
+    "paused_line": 25,
+    "function": "clean",
+    "mode": "after",
+    "hit": 2,
+    "elapsed": 0.5583
+   },
+   "highlight": [
+    "clean"
+   ],
+   "level": 2,
+   "parent": "clean",
+   "code": {
+    "file": "demo/clean.py",
+    "start": 14,
+    "end": 30,
+    "current": 28,
+    "focus": [
+     [
+      25,
+      28
+     ]
+    ],
+    "source": "def clean(raw: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, int]]:\n    \"\"\"Return a cleaned copy of `raw` and a report of what was changed.\"\"\"\n    report: dict[str, int] = {}\n\n    df = raw.drop_duplicates()\n    report[\"duplicates\"] = len(raw) - len(df)\n\n    outliers = df[\"rentals\"] > MAX_RENTALS\n    report[\"outliers\"] = int(outliers.sum())\n    df = df[~outliers].copy()\n\n    for column in SENSORS:\n        missing = df[column].isna()\n        report[f\"missing_{column}\"] = int(missing.sum())\n        df[column] = df[column].fillna(df[column].median())\n\n    return df.reset_index(drop=True), report"
+   },
+   "objects": [
+    {
+     "name": "column",
+     "expr": "column",
+     "display": {
+      "kind": "json",
+      "value": "humidity",
+      "type": "str"
+     }
+    },
+    {
+     "name": "gaps",
+     "expr": "int(missing.sum())",
+     "display": {
+      "kind": "json",
+      "value": 4,
+      "type": "int"
+     }
+    },
+    {
+     "name": "median",
+     "expr": "round(df[column].median(), 1)",
+     "display": {
+      "kind": "json",
+      "value": 62.0,
+      "type": "numpy.float64"
+     }
+    },
+    {
+     "name": "filled",
+     "expr": "df[column].describe()",
+     "display": {
+      "kind": "table",
+      "columns": [
+       "humidity"
+      ],
+      "index": [
+       "count",
+       "mean",
+       "std",
+       "min",
+       "25%",
+       "50%",
+       "75%",
+       "max"
+      ],
+      "index_name": null,
+      "rows": [
+       [
+        178.0
+       ],
+       [
+        61.735955056179776
+       ],
+       [
+        11.200935667040396
+       ],
+       [
+        23.0
+       ],
+       [
+        55.0
+       ],
+       [
+        62.0
+       ],
+       [
+        69.0
+       ],
+       [
+        86.0
+       ]
+      ],
+      "shape": [
+       8,
+       1
+      ],
+      "dtypes": {
+       "humidity": "float64"
+      },
+      "truncated": false,
+      "type": "pandas.Series"
+     }
+    }
+   ],
+   "text": "Column `humidity`: 4 empty readings were replaced with the column's\nmedian, 62.0.\n\nThe median is robust to the odd extreme reading, and filling rather than dropping\nkeeps the day's other columns. `filled` is `describe()` of the column after the\nfill: the count now matches the number of rows.",
+   "console": ""
+  },
+  {
+   "id": "clean",
+   "spec_id": "clean",
+   "index": 6,
+   "label": "5",
+   "kind": "step",
+   "title": "Clean the frame",
    "location": {
     "file": "demo/clean.py",
     "line": 30,
@@ -674,11 +929,13 @@
     "function": "clean",
     "mode": "return",
     "hit": 1,
-    "elapsed": 1.4131
+    "elapsed": 0.559
    },
    "highlight": [
     "clean"
    ],
+   "level": 1,
+   "parent": null,
    "code": {
     "file": "demo/clean.py",
     "start": 14,
@@ -700,112 +957,6 @@
        "missing_humidity": 4
       },
       "type": "dict"
-     }
-    },
-    {
-     "name": "summary",
-     "expr": "__return__[0].describe()",
-     "display": {
-      "kind": "table",
-      "columns": [
-       "date",
-       "temp_c",
-       "humidity",
-       "windspeed",
-       "holiday",
-       "rentals"
-      ],
-      "index": [
-       "count",
-       "mean",
-       "min",
-       "25%",
-       "50%",
-       "75%",
-       "max",
-       "std"
-      ],
-      "index_name": null,
-      "rows": [
-       [
-        178,
-        178.0,
-        178.0,
-        178.0,
-        178.0,
-        178.0
-       ],
-       [
-        "2024-05-29T14:41:47.865168",
-        17.044382022471908,
-        61.735955056179776,
-        10.729775280898878,
-        0.07865168539325842,
-        2471.7078651685392
-       ],
-       [
-        "2024-03-01T00:00:00",
-        3.8,
-        23.0,
-        0.7,
-        0.0,
-        841.0
-       ],
-       [
-        "2024-04-15T06:00:00",
-        14.125,
-        55.0,
-        5.2,
-        0.0,
-        2030.5
-       ],
-       [
-        "2024-05-29T12:00:00",
-        18.3,
-        62.0,
-        9.149999999999999,
-        0.0,
-        2544.5
-       ],
-       [
-        "2024-07-13T18:00:00",
-        20.775,
-        69.0,
-        13.3,
-        0.0,
-        2933.0
-       ],
-       [
-        "2024-08-27T00:00:00",
-        28.3,
-        86.0,
-        45.3,
-        1.0,
-        3732.0
-       ],
-       [
-        null,
-        5.27228087843809,
-        11.200935667040396,
-        8.018556230208318,
-        0.2699537144308196,
-        649.5508261537342
-       ]
-      ],
-      "shape": [
-       8,
-       6
-      ],
-      "dtypes": {
-       "date": "object",
-       "temp_c": "float64",
-       "humidity": "float64",
-       "windspeed": "float64",
-       "holiday": "float64",
-       "rentals": "float64"
-      },
-      "truncated": false,
-      "type": "pandas.DataFrame"
      }
     },
     {
@@ -1065,16 +1216,122 @@
       "truncated": true,
       "type": "pandas.DataFrame"
      }
+    },
+    {
+     "name": "summary",
+     "expr": "__return__[0].describe()",
+     "display": {
+      "kind": "table",
+      "columns": [
+       "date",
+       "temp_c",
+       "humidity",
+       "windspeed",
+       "holiday",
+       "rentals"
+      ],
+      "index": [
+       "count",
+       "mean",
+       "min",
+       "25%",
+       "50%",
+       "75%",
+       "max",
+       "std"
+      ],
+      "index_name": null,
+      "rows": [
+       [
+        178,
+        178.0,
+        178.0,
+        178.0,
+        178.0,
+        178.0
+       ],
+       [
+        "2024-05-29T14:41:47.865168",
+        17.044382022471908,
+        61.735955056179776,
+        10.729775280898878,
+        0.07865168539325842,
+        2471.7078651685392
+       ],
+       [
+        "2024-03-01T00:00:00",
+        3.8,
+        23.0,
+        0.7,
+        0.0,
+        841.0
+       ],
+       [
+        "2024-04-15T06:00:00",
+        14.125,
+        55.0,
+        5.2,
+        0.0,
+        2030.5
+       ],
+       [
+        "2024-05-29T12:00:00",
+        18.3,
+        62.0,
+        9.149999999999999,
+        0.0,
+        2544.5
+       ],
+       [
+        "2024-07-13T18:00:00",
+        20.775,
+        69.0,
+        13.3,
+        0.0,
+        2933.0
+       ],
+       [
+        "2024-08-27T00:00:00",
+        28.3,
+        86.0,
+        45.3,
+        1.0,
+        3732.0
+       ],
+       [
+        null,
+        5.27228087843809,
+        11.200935667040396,
+        8.018556230208318,
+        0.2699537144308196,
+        649.5508261537342
+       ]
+      ],
+      "shape": [
+       8,
+       6
+      ],
+      "dtypes": {
+       "date": "object",
+       "temp_c": "float64",
+       "humidity": "float64",
+       "windspeed": "float64",
+       "holiday": "float64",
+       "rentals": "float64"
+      },
+      "truncated": false,
+      "type": "pandas.DataFrame"
+     }
     }
    ],
-   "text": "`clean` returns two things: the frame and the report. Temperature and humidity are\nsensor columns with occasional gaps, filled with each column's median. The\n`report` tab counts every intervention.\n\n`summary` is `describe()` of the cleaned frame: the maximum of `rentals` is now\nplausible, and no column has fewer values than the others.",
+   "text": "`clean` returns the cleaned frame and a report of what it changed: duplicated\nrows dropped, counter glitches removed, empty sensor readings filled with the\ncolumn median. 183 rows went in, 178 come out, and the `report` tab counts every\nintervention.\n\n`summary` is `describe()` of the result: the maximum of `rentals` is now\nplausible, and no column has fewer values than the others. Press **Down** to see\neach of the three interventions as it happened.",
    "console": ""
   },
   {
    "id": "features",
    "spec_id": "features",
-   "index": 5,
-   "label": "5",
+   "index": 7,
+   "label": "6",
    "kind": "step",
    "title": "Build the design matrix",
    "location": {
@@ -1084,11 +1341,13 @@
     "function": "build_features",
     "mode": "return",
     "hit": 1,
-    "elapsed": 1.418
+    "elapsed": 0.5642
    },
    "highlight": [
     "feats"
    ],
+   "level": 1,
+   "parent": null,
    "code": {
     "file": "demo/features.py",
     "start": 13,
@@ -1096,8 +1355,8 @@
     "current": 29,
     "focus": [
      [
-      27,
-      29
+      26,
+      28
      ]
     ],
     "source": "def build_features(df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, list[str]]:\n    \"\"\"Return (X, y, names).\n\n    X has one row per day: a bias column, the standardised numeric columns,\n    one-hot weather indicators and the holiday flag. y is the rental count.\n    \"\"\"\n    numeric = df[NUMERIC].to_numpy(dtype=float)\n    scaled = (numeric - numeric.mean(axis=0)) / numeric.std(axis=0)\n\n    weather = np.stack([(df[\"weather\"] == w).to_numpy(dtype=float) for w in WEATHER], axis=1)\n    holiday = df[[\"holiday\"]].to_numpy(dtype=float)\n    bias = np.ones((len(df), 1))\n\n    X = np.hstack([bias, scaled, weather, holiday])\n    y = df[\"rentals\"].to_numpy(dtype=float)\n    names = [\"bias\", *NUMERIC, *(f\"weather={w}\" for w in WEATHER), \"holiday\"]\n    return X, y, names"
@@ -1316,8 +1575,8 @@
   {
    "id": "epoch.1",
    "spec_id": "epoch",
-   "index": 6,
-   "label": "6.1",
+   "index": 8,
+   "label": "7.1",
    "kind": "step",
    "title": "One gradient step (hit 1)",
    "location": {
@@ -1327,11 +1586,13 @@
     "function": "fit",
     "mode": "after",
     "hit": 1,
-    "elapsed": 1.4184
+    "elapsed": 0.5653
    },
    "highlight": [
     "train"
    ],
+   "level": 2,
+   "parent": "fitted",
    "code": {
     "file": "demo/train.py",
     "start": 17,
@@ -1454,8 +1715,8 @@
   {
    "id": "epoch.2",
    "spec_id": "epoch",
-   "index": 7,
-   "label": "6.2",
+   "index": 9,
+   "label": "7.2",
    "kind": "step",
    "title": "One gradient step (hit 2)",
    "location": {
@@ -1465,11 +1726,13 @@
     "function": "fit",
     "mode": "after",
     "hit": 2,
-    "elapsed": 1.5559
+    "elapsed": 0.7163
    },
    "highlight": [
     "train"
    ],
+   "level": 2,
+   "parent": "fitted",
    "code": {
     "file": "demo/train.py",
     "start": 17,
@@ -1590,10 +1853,442 @@
    "console": ""
   },
   {
+   "id": "error",
+   "spec_id": "error",
+   "index": 10,
+   "label": "8",
+   "kind": "step",
+   "title": "Predict and measure the error",
+   "location": {
+    "file": "demo/train.py",
+    "line": 21,
+    "paused_line": 22,
+    "function": "fit",
+    "mode": "after",
+    "hit": 1,
+    "elapsed": 0.7706
+   },
+   "highlight": [
+    "train"
+   ],
+   "level": 3,
+   "parent": "epoch.3",
+   "code": {
+    "file": "demo/train.py",
+    "start": 17,
+    "end": 26,
+    "current": 21,
+    "focus": [
+     [
+      20,
+      21
+     ]
+    ],
+    "source": "    def fit(self, X: np.ndarray, y: np.ndarray, *, epochs: int = 200, lr: float = 0.1) -> \"LinearModel\":\n        n = len(y)\n        for epoch in range(epochs):\n            pred = X @ self.w\n            error = pred - y\n            loss = float(np.mean(error**2))\n            self.history.append(loss)\n            grad = 2 * X.T @ error / n\n            self.w -= lr * grad\n        return self"
+   },
+   "objects": [
+    {
+     "name": "error",
+     "expr": "error",
+     "display": {
+      "kind": "array",
+      "library": "numpy",
+      "dtype": "float64",
+      "shape": [
+       178
+      ],
+      "size": 178,
+      "stats": {
+       "min": -1053.3163145004592,
+       "max": 986.4055893570953,
+       "mean": -236.83264346082973,
+       "std": 448.56029554045205,
+       "nan": 0
+      },
+      "preview": [
+       [
+        -128.28293242593918,
+        -416.8142813781144,
+        436.9748193976038,
+        148.89950459540637,
+        -125.34400701789195,
+        356.1203325312995,
+        -499.62224499989316,
+        -143.65740538516366,
+        -182.72299182254756,
+        391.0641350166586,
+        -471.7012913127867,
+        -562.7987722280634,
+        56.649652285994534,
+        258.1017943114407,
+        -456.00381923565965,
+        -729.3951419437806,
+        -130.99653292550033,
+        -426.8485792422873,
+        -939.1067085834386,
+        -485.08475661630155
+       ]
+      ],
+      "preview_shape": [
+       1,
+       20
+      ],
+      "preview_index": null,
+      "truncated": true,
+      "type": "numpy.ndarray"
+     }
+    },
+    {
+     "name": "pred",
+     "expr": "pred",
+     "display": {
+      "kind": "array",
+      "library": "numpy",
+      "dtype": "float64",
+      "shape": [
+       178
+      ],
+      "size": 178,
+      "stats": {
+       "min": 1016.0034670744997,
+       "max": 3508.6493098775436,
+       "mean": 2234.87522170771,
+       "std": 519.9285206910833,
+       "nan": 0
+      },
+      "preview": [
+       [
+        1191.7170675740608,
+        1231.1857186218856,
+        1360.9748193976038,
+        1362.8995045954064,
+        1282.655992982108,
+        1197.1203325312995,
+        1126.3777550001068,
+        1995.3425946148363,
+        1229.2770081774524,
+        1395.0641350166586,
+        1592.2987086872133,
+        1234.2012277719366,
+        1596.6496522859945,
+        1525.1017943114407,
+        1379.9961807643404,
+        1621.6048580562194,
+        1016.0034670744997,
+        1224.1514207577127,
+        1095.8932914165614,
+        1089.9152433836985
+       ]
+      ],
+      "preview_shape": [
+       1,
+       20
+      ],
+      "preview_index": null,
+      "truncated": true,
+      "type": "numpy.ndarray"
+     }
+    },
+    {
+     "name": "y",
+     "expr": "y",
+     "display": {
+      "kind": "array",
+      "library": "numpy",
+      "dtype": "float64",
+      "shape": [
+       178
+      ],
+      "size": 178,
+      "stats": {
+       "min": 841.0,
+       "max": 3732.0,
+       "mean": 2471.7078651685392,
+       "std": 647.723675343939,
+       "nan": 0
+      },
+      "preview": [
+       [
+        1320.0,
+        1648.0,
+        924.0,
+        1214.0,
+        1408.0,
+        841.0,
+        1626.0,
+        2139.0,
+        1412.0,
+        1004.0,
+        2064.0,
+        1797.0,
+        1540.0,
+        1267.0,
+        1836.0,
+        2351.0,
+        1147.0,
+        1651.0,
+        2035.0,
+        1575.0
+       ]
+      ],
+      "preview_shape": [
+       1,
+       20
+      ],
+      "preview_index": null,
+      "truncated": true,
+      "type": "numpy.ndarray"
+     }
+    },
+    {
+     "name": "epoch",
+     "expr": "epoch",
+     "display": {
+      "kind": "json",
+      "value": 10,
+      "type": "int"
+     }
+    }
+   ],
+   "text": "Inside epoch 10. `pred` is the model's guess for every day with the\ncurrent weights, `error` the signed difference to the truth `y`: positive where\nthe model predicts too many rentals, negative where too few.",
+   "console": ""
+  },
+  {
+   "id": "loss",
+   "spec_id": "loss",
+   "index": 11,
+   "label": "9",
+   "kind": "step",
+   "title": "The loss is the mean squared error",
+   "location": {
+    "file": "demo/train.py",
+    "line": 22,
+    "paused_line": 23,
+    "function": "fit",
+    "mode": "after",
+    "hit": 1,
+    "elapsed": 0.7708
+   },
+   "highlight": [
+    "train"
+   ],
+   "level": 3,
+   "parent": "epoch.3",
+   "code": {
+    "file": "demo/train.py",
+    "start": 17,
+    "end": 26,
+    "current": 22,
+    "focus": [
+     [
+      22,
+      23
+     ]
+    ],
+    "source": "    def fit(self, X: np.ndarray, y: np.ndarray, *, epochs: int = 200, lr: float = 0.1) -> \"LinearModel\":\n        n = len(y)\n        for epoch in range(epochs):\n            pred = X @ self.w\n            error = pred - y\n            loss = float(np.mean(error**2))\n            self.history.append(loss)\n            grad = 2 * X.T @ error / n\n            self.w -= lr * grad\n        return self"
+   },
+   "objects": [
+    {
+     "name": "loss",
+     "expr": "f'{loss:,.0f}'",
+     "display": {
+      "kind": "json",
+      "value": "257,296",
+      "type": "str"
+     }
+    },
+    {
+     "name": "error",
+     "expr": "error",
+     "display": {
+      "kind": "array",
+      "library": "numpy",
+      "dtype": "float64",
+      "shape": [
+       178
+      ],
+      "size": 178,
+      "stats": {
+       "min": -1053.3163145004592,
+       "max": 986.4055893570953,
+       "mean": -236.83264346082973,
+       "std": 448.56029554045205,
+       "nan": 0
+      },
+      "preview": [
+       [
+        -128.28293242593918,
+        -416.8142813781144,
+        436.9748193976038,
+        148.89950459540637,
+        -125.34400701789195,
+        356.1203325312995,
+        -499.62224499989316,
+        -143.65740538516366,
+        -182.72299182254756,
+        391.0641350166586,
+        -471.7012913127867,
+        -562.7987722280634,
+        56.649652285994534,
+        258.1017943114407,
+        -456.00381923565965,
+        -729.3951419437806,
+        -130.99653292550033,
+        -426.8485792422873,
+        -939.1067085834386,
+        -485.08475661630155
+       ]
+      ],
+      "preview_shape": [
+       1,
+       20
+      ],
+      "preview_index": null,
+      "truncated": true,
+      "type": "numpy.ndarray"
+     }
+    }
+   ],
+   "text": "Squaring the errors makes big misses count much more than small ones and removes\nthe sign; the mean turns it into a single number, 257,296, that gradient descent\nwill push down. It is appended to `history` so the curve can be drawn later.",
+   "console": ""
+  },
+  {
+   "id": "grad",
+   "spec_id": "grad",
+   "index": 12,
+   "label": "10",
+   "kind": "step",
+   "title": "The gradient points uphill",
+   "location": {
+    "file": "demo/train.py",
+    "line": 24,
+    "paused_line": 25,
+    "function": "fit",
+    "mode": "after",
+    "hit": 1,
+    "elapsed": 0.7709
+   },
+   "highlight": [
+    "train"
+   ],
+   "level": 3,
+   "parent": "epoch.3",
+   "code": {
+    "file": "demo/train.py",
+    "start": 17,
+    "end": 26,
+    "current": 24,
+    "focus": [
+     [
+      24,
+      25
+     ]
+    ],
+    "source": "    def fit(self, X: np.ndarray, y: np.ndarray, *, epochs: int = 200, lr: float = 0.1) -> \"LinearModel\":\n        n = len(y)\n        for epoch in range(epochs):\n            pred = X @ self.w\n            error = pred - y\n            loss = float(np.mean(error**2))\n            self.history.append(loss)\n            grad = 2 * X.T @ error / n\n            self.w -= lr * grad\n        return self"
+   },
+   "objects": [
+    {
+     "name": "grad",
+     "expr": "grad",
+     "display": {
+      "kind": "array",
+      "library": "numpy",
+      "dtype": "float64",
+      "shape": [
+       7
+      ],
+      "size": 7,
+      "stats": {
+       "min": -473.6652869216593,
+       "max": 120.25088239485676,
+       "mean": -53.323558841947225,
+       "std": 182.74230084762036,
+       "nan": 0
+      },
+      "preview": [
+       [
+        -473.6652869216593,
+        -109.56358634591996,
+        27.507051376921737,
+        8.924169498894491,
+        43.78791193644552,
+        120.25088239485676,
+        9.49394616683019
+       ]
+      ],
+      "preview_shape": [
+       1,
+       7
+      ],
+      "preview_index": null,
+      "truncated": false,
+      "type": "numpy.ndarray"
+     }
+    },
+    {
+     "name": "names",
+     "expr": "self.names",
+     "display": {
+      "kind": "json",
+      "value": [
+       "bias",
+       "temp_c",
+       "humidity",
+       "windspeed",
+       "weather=cloudy",
+       "weather=rain",
+       "holiday"
+      ],
+      "type": "list"
+     }
+    },
+    {
+     "name": "w",
+     "expr": "self.w",
+     "display": {
+      "kind": "array",
+      "library": "numpy",
+      "dtype": "float64",
+      "shape": [
+       7
+      ],
+      "size": 7,
+      "stats": {
+       "min": -96.1095930334079,
+       "max": 2090.75437296826,
+       "mean": 437.14870740886647,
+       "std": 705.101169023756,
+       "nan": 0
+      },
+      "preview": [
+       [
+        2090.75437296826,
+        466.5500235497803,
+        -85.90262186541806,
+        -96.1095930334079,
+        419.77782611648416,
+        154.9492856761503,
+        110.02165845021635
+       ]
+      ],
+      "preview_shape": [
+       1,
+       7
+      ],
+      "preview_index": null,
+      "truncated": false,
+      "type": "numpy.ndarray"
+     }
+    }
+   ],
+   "text": "`grad` is the derivative of the loss with respect to each weight: `X.T @ error`\nsums, for every column, the error weighted by that feature. A positive entry means\nincreasing that weight would increase the loss, so the next line moves the weight\nthe other way, scaled by the learning rate.",
+   "console": ""
+  },
+  {
    "id": "epoch.3",
    "spec_id": "epoch",
-   "index": 8,
-   "label": "6.3",
+   "index": 13,
+   "label": "7.3",
    "kind": "step",
    "title": "One gradient step (hit 3)",
    "location": {
@@ -1603,11 +2298,13 @@
     "function": "fit",
     "mode": "after",
     "hit": 3,
-    "elapsed": 1.6031
+    "elapsed": 0.7711
    },
    "highlight": [
     "train"
    ],
+   "level": 2,
+   "parent": "fitted",
    "code": {
     "file": "demo/train.py",
     "start": 17,
@@ -1730,8 +2427,8 @@
   {
    "id": "epoch.4",
    "spec_id": "epoch",
-   "index": 9,
-   "label": "6.4",
+   "index": 14,
+   "label": "7.4",
    "kind": "step",
    "title": "One gradient step (hit 4)",
    "location": {
@@ -1741,11 +2438,13 @@
     "function": "fit",
     "mode": "after",
     "hit": 4,
-    "elapsed": 1.6882
+    "elapsed": 0.8607
    },
    "highlight": [
     "train"
    ],
+   "level": 2,
+   "parent": "fitted",
    "code": {
     "file": "demo/train.py",
     "start": 17,
@@ -1868,10 +2567,10 @@
   {
    "id": "fitted",
    "spec_id": "fitted",
-   "index": 10,
-   "label": "7",
+   "index": 15,
+   "label": "11",
    "kind": "step",
-   "title": "The fitted model",
+   "title": "Fit the model",
    "location": {
     "file": "demo/train.py",
     "line": 26,
@@ -1879,11 +2578,13 @@
     "function": "fit",
     "mode": "return",
     "hit": 1,
-    "elapsed": 1.7394
+    "elapsed": 0.9251
    },
    "highlight": [
     "train"
    ],
+   "level": 1,
+   "parent": null,
    "code": {
     "file": "demo/train.py",
     "start": 17,
@@ -1953,14 +2654,324 @@
      }
     }
    ],
-   "text": "`fit` returns the model itself so that `LinearModel(names).fit(X, y)` reads as one\nexpression. The `model` tab is the object's own HTML representation (its\n`_repr_html_` method): the weight of each named feature.\n\nBecause the numeric columns were standardised, their weights are comparable:\na one-standard-deviation warmer day adds about as many rentals as the\ntemperature weight says, rain costs the `weather=rain` weight.",
+   "text": "Training is 120 passes of gradient descent over the whole matrix. `fit` returns\nthe model itself so that `LinearModel(names).fit(X, y)` reads as one expression.\nThe `model` tab is the object's own HTML representation (its `_repr_html_`\nmethod): the weight of each named feature.\n\nBecause the numeric columns were standardised, their weights are comparable: a\none-standard-deviation warmer day adds about as many rentals as the temperature\nweight says, rain costs the `weather=rain` weight. **Down** shows four of the\npasses; down again from one of them, the lines inside a pass.",
+   "console": ""
+  },
+  {
+   "id": "residual",
+   "spec_id": "residual",
+   "index": 16,
+   "label": "12",
+   "kind": "step",
+   "title": "Residuals",
+   "location": {
+    "file": "demo/evaluate.py",
+    "line": 14,
+    "paused_line": 15,
+    "function": "score",
+    "mode": "after",
+    "hit": 1,
+    "elapsed": 0.9793
+   },
+   "highlight": [
+    "eval"
+   ],
+   "level": 2,
+   "parent": "score",
+   "code": {
+    "file": "demo/evaluate.py",
+    "start": 11,
+    "end": 18,
+    "current": 14,
+    "focus": [],
+    "source": "def score(model: LinearModel, X: np.ndarray, y: np.ndarray) -> dict[str, float]:\n    \"\"\"Root mean squared error, mean absolute error and R squared on (X, y).\"\"\"\n    pred = model.predict(X)\n    residual = y - pred\n    rmse = float(np.sqrt(np.mean(residual**2)))\n    mae = float(np.mean(np.abs(residual)))\n    r2 = float(1 - np.sum(residual**2) / np.sum((y - y.mean()) ** 2))\n    return {\"rmse\": rmse, \"mae\": mae, \"r2\": r2}"
+   },
+   "objects": [
+    {
+     "name": "residual",
+     "expr": "residual",
+     "display": {
+      "kind": "array",
+      "library": "numpy",
+      "dtype": "float64",
+      "shape": [
+       178
+      ],
+      "size": 178,
+      "stats": {
+       "min": -1034.5211947760376,
+       "max": 494.6548470627331,
+       "mean": 4.484036289392862,
+       "std": 209.8908742988999,
+       "nan": 0
+      },
+      "preview": [
+       [
+        -339.61888647371416,
+        -49.81746056849511,
+        -82.58178161473438,
+        -5.1530512859715145,
+        -77.511643056901,
+        14.274318897006196,
+        53.34162668885574,
+        232.37948497871184,
+        -294.12776187236,
+        -41.97818648755401,
+        -44.98074655025812,
+        111.19754736934874,
+        81.48987953992173,
+        -131.71012640416734,
+        -28.167105059936375,
+        219.96251355845652,
+        -28.968076799298842,
+        -35.12098167300314,
+        464.68679991905765,
+        317.25307028488464
+       ]
+      ],
+      "preview_shape": [
+       1,
+       20
+      ],
+      "preview_index": null,
+      "truncated": true,
+      "type": "numpy.ndarray"
+     }
+    },
+    {
+     "name": "pred",
+     "expr": "pred",
+     "display": {
+      "kind": "array",
+      "library": "numpy",
+      "dtype": "float64",
+      "shape": [
+       178
+      ],
+      "size": 178,
+      "stats": {
+       "min": 826.7256811029938,
+       "max": 3619.0346673750314,
+       "mean": 2467.2238288791464,
+       "std": 596.6083611701096,
+       "nan": 0
+      },
+      "preview": [
+       [
+        1659.6188864737142,
+        1697.817460568495,
+        1006.5817816147344,
+        1219.1530512859715,
+        1485.511643056901,
+        826.7256811029938,
+        1572.6583733111443,
+        1906.6205150212882,
+        1706.12776187236,
+        1045.978186487554,
+        2108.980746550258,
+        1685.8024526306513,
+        1458.5101204600783,
+        1398.7101264041673,
+        1864.1671050599364,
+        2131.0374864415435,
+        1175.9680767992988,
+        1686.1209816730031,
+        1570.3132000809424,
+        1257.7469297151154
+       ]
+      ],
+      "preview_shape": [
+       1,
+       20
+      ],
+      "preview_index": null,
+      "truncated": true,
+      "type": "numpy.ndarray"
+     }
+    }
+   ],
+   "text": "`residual` is truth minus prediction for every day, the raw material of every\nmetric below. Its mean is close to zero (the bias weight absorbs any constant\noffset); its spread is what the metrics measure.",
+   "console": ""
+  },
+  {
+   "id": "rmse",
+   "spec_id": "rmse",
+   "index": 17,
+   "label": "13",
+   "kind": "step",
+   "title": "Root mean squared error",
+   "location": {
+    "file": "demo/evaluate.py",
+    "line": 16,
+    "paused_line": 17,
+    "function": "score",
+    "mode": "after",
+    "hit": 1,
+    "elapsed": 0.9795
+   },
+   "highlight": [
+    "eval"
+   ],
+   "level": 2,
+   "parent": "score",
+   "code": {
+    "file": "demo/evaluate.py",
+    "start": 11,
+    "end": 18,
+    "current": 16,
+    "focus": [
+     [
+      15,
+      16
+     ]
+    ],
+    "source": "def score(model: LinearModel, X: np.ndarray, y: np.ndarray) -> dict[str, float]:\n    \"\"\"Root mean squared error, mean absolute error and R squared on (X, y).\"\"\"\n    pred = model.predict(X)\n    residual = y - pred\n    rmse = float(np.sqrt(np.mean(residual**2)))\n    mae = float(np.mean(np.abs(residual)))\n    r2 = float(1 - np.sum(residual**2) / np.sum((y - y.mean()) ** 2))\n    return {\"rmse\": rmse, \"mae\": mae, \"r2\": r2}"
+   },
+   "objects": [
+    {
+     "name": "rmse",
+     "expr": "round(rmse)",
+     "display": {
+      "kind": "json",
+      "value": 210,
+      "type": "int"
+     }
+    },
+    {
+     "name": "mae",
+     "expr": "round(mae)",
+     "display": {
+      "kind": "json",
+      "value": 157,
+      "type": "int"
+     }
+    },
+    {
+     "name": "residual",
+     "expr": "residual",
+     "display": {
+      "kind": "array",
+      "library": "numpy",
+      "dtype": "float64",
+      "shape": [
+       178
+      ],
+      "size": 178,
+      "stats": {
+       "min": -1034.5211947760376,
+       "max": 494.6548470627331,
+       "mean": 4.484036289392862,
+       "std": 209.8908742988999,
+       "nan": 0
+      },
+      "preview": [
+       [
+        -339.61888647371416,
+        -49.81746056849511,
+        -82.58178161473438,
+        -5.1530512859715145,
+        -77.511643056901,
+        14.274318897006196,
+        53.34162668885574,
+        232.37948497871184,
+        -294.12776187236,
+        -41.97818648755401,
+        -44.98074655025812,
+        111.19754736934874,
+        81.48987953992173,
+        -131.71012640416734,
+        -28.167105059936375,
+        219.96251355845652,
+        -28.968076799298842,
+        -35.12098167300314,
+        464.68679991905765,
+        317.25307028488464
+       ]
+      ],
+      "preview_shape": [
+       1,
+       20
+      ],
+      "preview_index": null,
+      "truncated": true,
+      "type": "numpy.ndarray"
+     }
+    }
+   ],
+   "text": "`rmse` (210) is the square root of the training loss, so it is in rentals per\nday again. `mae` (157) is the plain average miss; it is smaller because the\nsquared error weights the worst days more heavily.",
+   "console": ""
+  },
+  {
+   "id": "r2",
+   "spec_id": "r2",
+   "index": 18,
+   "label": "14",
+   "kind": "step",
+   "title": "R squared",
+   "location": {
+    "file": "demo/evaluate.py",
+    "line": 17,
+    "paused_line": 18,
+    "function": "score",
+    "mode": "after",
+    "hit": 1,
+    "elapsed": 0.9797
+   },
+   "highlight": [
+    "eval"
+   ],
+   "level": 2,
+   "parent": "score",
+   "code": {
+    "file": "demo/evaluate.py",
+    "start": 11,
+    "end": 18,
+    "current": 17,
+    "focus": [
+     [
+      17,
+      17
+     ]
+    ],
+    "source": "def score(model: LinearModel, X: np.ndarray, y: np.ndarray) -> dict[str, float]:\n    \"\"\"Root mean squared error, mean absolute error and R squared on (X, y).\"\"\"\n    pred = model.predict(X)\n    residual = y - pred\n    rmse = float(np.sqrt(np.mean(residual**2)))\n    mae = float(np.mean(np.abs(residual)))\n    r2 = float(1 - np.sum(residual**2) / np.sum((y - y.mean()) ** 2))\n    return {\"rmse\": rmse, \"mae\": mae, \"r2\": r2}"
+   },
+   "objects": [
+    {
+     "name": "r2",
+     "expr": "round(r2, 3)",
+     "display": {
+      "kind": "json",
+      "value": 0.895,
+      "type": "float"
+     }
+    },
+    {
+     "name": "variance",
+     "expr": "float(np.sum((y - y.mean()) ** 2))",
+     "display": {
+      "kind": "json",
+      "value": 74679180.80898876,
+      "type": "float"
+     }
+    },
+    {
+     "name": "unexplained",
+     "expr": "float(np.sum(residual**2))",
+     "display": {
+      "kind": "json",
+      "value": 7845222.85378141,
+      "type": "float"
+     }
+    }
+   ],
+   "text": "`r2` = 1 minus unexplained variance over total variance: 0.895 means the model\naccounts for about 90 % of the day-to-day variation in rentals. A model that\nalways predicted the mean would score 0.",
    "console": ""
   },
   {
    "id": "score",
    "spec_id": "score",
-   "index": 11,
-   "label": "8",
+   "index": 19,
+   "label": "15",
    "kind": "step",
    "title": "Score the fit",
    "location": {
@@ -1970,11 +2981,13 @@
     "function": "score",
     "mode": "return",
     "hit": 1,
-    "elapsed": 1.7978
+    "elapsed": 0.9797
    },
    "highlight": [
     "eval"
    ],
+   "level": 1,
+   "parent": null,
    "code": {
     "file": "demo/evaluate.py",
     "start": 11,
@@ -2076,8 +3089,8 @@
   {
    "id": "report",
    "spec_id": "report",
-   "index": 12,
-   "label": "9",
+   "index": 20,
+   "label": "16",
    "kind": "step",
    "title": "Report the result",
    "location": {
@@ -2087,11 +3100,13 @@
     "function": "main",
     "mode": "before",
     "hit": 1,
-    "elapsed": 1.8415
+    "elapsed": 1.02
    },
    "highlight": [
     "report"
    ],
+   "level": 1,
+   "parent": null,
    "code": {
     "file": "run.py",
     "start": 17,

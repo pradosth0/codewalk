@@ -274,7 +274,7 @@ def test_json_payload_shape(backend):
     w.step(id="s", at="mini/stages.py::score", highlight=["score"])
     rec = record(w.spec, backend=backend)
     data = json.loads(rec.to_json())
-    assert data["version"] == 1
+    assert data["version"] == 2
     assert data["title"] == "Mini"
     assert data["entry"] == "run.py --rows 5"
     assert data["schema"]["nodes"] == ["load", "transform", "accumulate", "score"]

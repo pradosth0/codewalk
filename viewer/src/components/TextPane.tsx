@@ -5,12 +5,22 @@ interface Props {
   text: string
   title: string
   intro: boolean
+  crumbs?: string[]
 }
 
-export function TextPane({ text, title, intro }: Props) {
+export function TextPane({ text, title, intro, crumbs = [] }: Props) {
   return (
     <section className="pane text">
       <div className="pane-header">
+        {crumbs.length > 0 && (
+          <span className="crumbs muted small" title="The steps that summarise this one">
+            {crumbs.map((c, i) => (
+              <span key={i}>
+                {c} <span className="crumb-sep">›</span>{' '}
+              </span>
+            ))}
+          </span>
+        )}
         <span className="file">{intro ? 'Introduction' : title}</span>
       </div>
       <div className="markdown">

@@ -7,6 +7,7 @@ import { TextPane } from './components/TextPane'
 import { NavBar } from './components/NavBar'
 import { Splitter } from './components/Splitter'
 import { usePrefersDark } from './theme'
+import { breadcrumb, buildOutline, effectiveLevel, firstChild, nextAt, parentOf, positionAt, prevAt } from './outline'
 
 function initialPosition(rec: Recording, hasIntro: boolean): number {
   const param = new URLSearchParams(window.location.search).get('step')
@@ -26,6 +27,8 @@ export default function App({ recording }: { recording: Recording }) {
   const min = hasIntro ? -1 : 0
   const max = steps.length - 1
   const [pos, setPos] = useState(() => initialPosition(recording, hasIntro))
+  const outline = useMemo(() => buildOutline(steps, recording.levels ?? []), [steps, recording.levels])
+  const [detail, setDetail] = useState(() => outline.minLevel)
   const [showConsole, setShowConsole] = useState(false)
   const [split, setSplit] = useState(0.55)
   const [vsplit, setVsplit] = useState(0.58)
@@ -33,17 +36,46 @@ export default function App({ recording }: { recording: Recording }) {
 
   const goTo = useCallback((i: number) => setPos(Math.min(max, Math.max(min, i))), [min, max])
   const step: Step | null = pos >= 0 ? steps[pos] : null
+  const level = effectiveLevel(outline, pos, detail)
+  const ownLevel = pos >= 0 ? outline.levels[pos] : outline.minLevel
+  const childIdx = firstChild(outline, pos)
+  const parentIdx = parentOf(outline, pos)
+  const visible = positionAt(outline, pos, level)
+  const crumbs = useMemo(() => breadcrumb(outline, steps, pos), [outline, steps, pos])
+
+  // Next/Prev walk the steps at the current level; Down enters the details, Up returns to the summary.
+  const next = useCallback(() => {
+    const j = nextAt(outline, pos, level)
+    if (j >= 0) goTo(j)
+  }, [outline, pos, level, goTo])
+  const prev = useCallback(() => {
+    const j = prevAt(outline, pos, level)
+    if (j >= 0) goTo(j)
+    else if (hasIntro) goTo(-1)
+  }, [outline, pos, level, goTo, hasIntro])
+  const down = useCallback(() => {
+    if (childIdx >= 0) goTo(childIdx)
+  }, [childIdx, goTo])
+  const up = useCallback(() => {
+    if (parentIdx >= 0) goTo(parentIdx)
+  }, [parentIdx, goTo])
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
       if (e.metaKey || e.ctrlKey || e.altKey) return
-      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
+      if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
         e.preventDefault()
-        goTo(pos + 1)
-      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+        next()
+      } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
         e.preventDefault()
-        goTo(pos - 1)
+        prev()
+      } else if (e.key === 'ArrowDown') {
+        e.preventDefault()
+        down()
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault()
+        up()
       } else if (e.key === 'Home') {
         goTo(min)
       } else if (e.key === 'End') {
@@ -52,7 +84,7 @@ export default function App({ recording }: { recording: Recording }) {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [pos, goTo, min, max])
+  }, [next, prev, down, up, goTo, min, max])
 
   useEffect(() => {
     try {
@@ -121,6 +153,7 @@ export default function App({ recording }: { recording: Recording }) {
             text={step ? step.text : recording.description}
             title={step ? step.title : recording.title}
             intro={!step}
+            crumbs={crumbs}
           />
         </div>
       </main>
@@ -132,8 +165,17 @@ export default function App({ recording }: { recording: Recording }) {
         min={min}
         max={max}
         step={step}
-        onPrev={() => goTo(pos - 1)}
-        onNext={() => goTo(pos + 1)}
+        outline={outline}
+        level={ownLevel}
+        detail={detail}
+        visible={visible}
+        canUp={parentIdx >= 0}
+        canDown={childIdx >= 0}
+        onPrev={prev}
+        onNext={next}
+        onUp={up}
+        onDown={down}
+        onDetail={setDetail}
         consoleOpen={showConsole}
         onToggleConsole={() => setShowConsole((v) => !v)}
       />

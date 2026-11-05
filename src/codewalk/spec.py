@@ -8,7 +8,7 @@ import re
 import shlex
 import sys
 import textwrap
-from typing import Any, Literal, Optional, Union
+from typing import Sequence, Any, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, ValidationError, model_validator
 
@@ -296,9 +296,17 @@ class StepSpec(BaseModel):
     focus: Optional[str] = None
     show: dict[str, str] = {}
     text: str = ""
+    level: int = Field(default=2, ge=1, strict=True)
+    parent: Optional[str] = None
 
     @model_validator(mode="after")
     def _validate(self) -> "StepSpec":
+        if isinstance(self.level, bool):
+            raise SpecError("level= must be an integer >= 1 (1 = key steps, 2 = default, 3 = line by line)")
+        if self.parent is not None and not _IDENT.match(self.parent):
+            raise SpecError(f"parent= must be a step id, got {self.parent!r}")
+        if self.parent == self.id:
+            raise SpecError("a step cannot be its own parent")
         if (self.at is None) == (self.after is None):
             raise SpecError("give exactly one of at= or after=")
         loc = self.location
@@ -352,7 +360,16 @@ class WalkthroughSpec(BaseModel):
     root: str
     env: dict[str, str] = {}
     timeout: float = Field(default=600.0, gt=0)
+    levels: list[str] = []
     steps: list[StepSpec] = []
+
+    @property
+    def min_level(self) -> int:
+        return min((s.level for s in self.steps), default=1)
+
+    @property
+    def max_level(self) -> int:
+        return max((s.level for s in self.steps), default=1)
 
     def step_by_id(self, step_id: str) -> Optional[StepSpec]:
         for s in self.steps:
@@ -388,6 +405,7 @@ class Walkthrough:
         root: Union[str, os.PathLike, None] = None,
         env: Optional[dict[str, str]] = None,
         timeout: float = 600.0,
+        levels: Optional[Sequence[str]] = None,
     ) -> None:
         entry_spec = Entry.parse(entry)
         schema_spec = SchemaSpec.from_input(schema)
@@ -404,6 +422,7 @@ class Walkthrough:
                 root=root_dir,
                 env=dict(env or {}),
                 timeout=timeout,
+                levels=[str(name) for name in (levels or [])],
                 steps=[],
             )
         except ValidationError as e:
@@ -438,9 +457,15 @@ class Walkthrough:
         text: str = "",
         title: Optional[str] = None,
         id: Optional[str] = None,
+        level: int = 2,
+        parent: Optional[str] = None,
     ) -> StepSpec:
         """Add a step. Pause `at="file.py:LINE"` (before the line runs), `after="file.py:LINE"`
-        (once it has run), or `at="file.py::function"` (on entry; `when="return"` for its return)."""
+        (once it has run), or `at="file.py::function"` (on entry; `when="return"` for its return).
+
+        `level` is the level of detail: 1 for the key steps a reader sees first, 2 (default)
+        for the normal walk, 3 and beyond for line-by-line detail. A deeper step belongs to the
+        next shallower step after it (its summary) unless `parent` names one explicitly."""
         index = len(self._spec.steps) + 1
         show_items: dict[str, str] = {}
         if plot is not None:
@@ -476,6 +501,8 @@ class Walkthrough:
                 focus=focus,
                 show=show_items,
                 text=textwrap.dedent(text).strip(),
+                level=level,
+                parent=parent,
             )
         except ValidationError as e:
             raise SpecError(f"{label}: {_format_validation_error(e)}") from None

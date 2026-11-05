@@ -1,10 +1,10 @@
 # Spec: codewalk, agent-authored visual walkthroughs of Python code
 
-Version 0.3, 2026-10-28. Decisions below were taken with the project owner; see
+Version 0.4, 2026-11-05. Decisions below were taken with the project owner; see
 [research.md](research.md) for the options that were weighed. `codewalk` is a placeholder
 name for the package and CLI. Implemented: milestones 1 to 4 (DSL, `check`, recorder,
-all display kinds, the viewer, `build`, `serve`, the demo pipeline, `screenshot`, `init`
-and the agent skill).
+all display kinds, the viewer, `build`, `serve`, the demo pipeline, `screenshot`, `init`,
+the agent skill, and levels of detail with Up/Down navigation).
 
 ## 1. Goal and non-goals
 
@@ -112,6 +112,7 @@ walkthrough.step(
 | `root` | path | Base for all relative paths and the working directory during the run. Default: directory of `walkthrough.py`; a relative `root` is resolved against that directory too (`root=".."` from `walkthroughs/train.py`), never against the current directory. |
 | `env` | dict, optional | Extra environment variables for the run. |
 | `timeout` | seconds, default 600 | Hard limit for the run. |
+| `levels` | list[str], optional | Names for the levels of detail, index 0 = level 1 (e.g. `["Overview", "Walkthrough", "Line by line"]`). Shown in the viewer; levels are numbered when absent. |
 
 ### 4.2 `step()` fields
 
@@ -130,6 +131,8 @@ walkthrough.step(
 | `text` | str | Markdown. `{{name}}` is replaced with the text form of the `show` value of that name. |
 | `title` | str, optional | Default: `"<function> (<file>:<line>)"`. |
 | `id` | str, optional | Stable id, default slug of the title plus index. Used by `?step=<id>` deep links and the screenshot command. |
+| `level` | int >= 1, default 2 | Level of detail: 1 for the key steps a reader sees first, 2 for the normal walk, 3 and beyond for line-by-line detail. Not limited to three. |
+| `parent` | str, optional | Id of the step that summarises this one, when the default rule (section 4.4) is not what you mean. Must be a shallower step. |
 
 ### 4.3 Semantics that must be documented for agents
 
@@ -149,6 +152,31 @@ walkthrough.step(
   the traceback. The walkthrough is still built, so failures can be explained too.
 - Line numbers refer to the file as it is when `record` runs. `check` verifies that the
   line is an executable line of the compiled module and warns otherwise.
+
+### 4.4 Levels of detail
+
+Readers should be able to walk the whole program in a few key steps and then deep-dive
+into one part without re-prompting the agent. Every step carries a `level`; nothing
+forces three, but the skill prescribes three by default: 1 for what a project manager
+needs (one key step per schema node, showing the stage's result), 2 for a teammate who
+must understand and vouch for the output, 3 for line-by-line understanding of the
+non-obvious parts.
+
+The hierarchy is derived from the recorded sequence by one rule (`outline.py`):
+
+- a deeper step belongs to the first shallower step recorded after it: **a key step
+  summarises the deeper steps recorded before it**, back to the previous step at its
+  level. Key steps therefore sit where a stage's result is visible, at the function's
+  return or in the caller right after the call;
+- deeper steps with no shallower step after them (trailing details) hang off the last
+  shallower step before them; `check` warns;
+- `parent="id"` overrides the rule for one step. With `hit="all"` parents, the first
+  instance recorded after the step is used, else the last one before it.
+
+`check` also warns when a key step pauses at a function's entry and is followed by
+deeper steps, because those will belong to the *next* key step. Declaration order must
+still follow first execution, so a `hit="all"` loop step is declared before the
+line-by-line steps inside one of its iterations.
 
 ## 5. Recorder
 
@@ -176,13 +204,14 @@ walkthrough.step(
 
 ```jsonc
 {
-  "version": 1,
+  "version": 2,
   "title": "How the demo pipeline trains a model",
   "description": "markdown or empty",
   "entry": "run.py --rows 500",
   "recorded_at": "2026-10-28T10:42:00Z",
   "python": "3.14.4",
   "schema": { "kind": "mermaid", "source": "flowchart LR\n  load[Load CSV] --> ..." , "nodes": ["load", "clean", "..."] },
+  "levels": ["Overview", "Walkthrough", "Line by line"],   // optional names, index 0 = level 1
   "warnings": ["step 'x' never reached"],
   "steps": [
     {
@@ -192,6 +221,8 @@ walkthrough.step(
       "title": "Read the raw CSV",
       "location": { "file": "src/demo/load.py", "line": 18, "function": "load_csv", "hit": 1, "elapsed": 0.03 },
       "highlight": ["load"],
+      "level": 1,                       // level of detail (section 4.4)
+      "parent": null,                   // id of the summarising step, filled by the recorder
       "code": { "file": "src/demo/load.py", "start": 12, "end": 31, "current": 18, "focus": [[18, 21]], "source": "def load_csv(...):\n ..." },
       "objects": [
         { "name": "raw", "expr": "df.head(10)", "display": { "kind": "table", "columns": ["id", "price"], "index": [0, 1], "index_name": null, "rows": [[1, 9.5], [2, 3.0]], "shape": [500, 2], "dtypes": { "id": "int64", "price": "float64" }, "truncated": true, "type": "pandas.DataFrame" } },
@@ -268,9 +299,17 @@ Layout, matching the original sketch:
 
 Implemented in `viewer/` (Vite 6, React 19, TypeScript, strict):
 
-- Navigation: Prev/Next buttons, keyboard (arrows, space, PageUp/Down, Home/End), and
-  `?step=<id>` deep links (`<label>` and 1-based numbers also work). The URL follows the
-  current step. A non-empty `description` becomes an intro view before step 1.
+- Navigation: Prev/Next walk the steps at the current step's level (deeper steps are
+  skipped); Down enters the first detail of the current step and Up jumps to the step
+  that summarises it (`outline.ts`, mirroring `outline.py`). A "walk at N" selector
+  raises the level Next/Prev visit, so "walk at 3" is the full tour. The counter shows
+  the position among the steps visible at the current level, a badge shows the step's
+  level (named when `levels` is set), and the text pane header shows the chain of
+  summaries above a detail step. Keyboard: ← → (and space, PageUp/Down) at the current
+  level, ↓ ↑ between levels, Home/End. `?step=<id>` deep links (`<label>` and 1-based
+  numbers also work); the URL follows the current step. A non-empty `description`
+  becomes an intro view before step 1. With a single level, Up/Down and the selector
+  are hidden and the viewer behaves as before.
 - Schema pane: Mermaid 11 `render()` per step; the definition gets `classDef cw_active`
   and `classDef cw_done` appended plus `class` lines for the current and the already
   visited nodes. If the classes break parsing (a non-flowchart diagram), it falls back to
@@ -316,7 +355,7 @@ codewalk check walkthrough.py                                       # static val
 codewalk record walkthrough.py [-o out/] [--strict] [--timeout S] [--backend settrace|monitoring] [--json-only]
 codewalk build out/steps.json [-o out/index.html]                   # rebuild the page, e.g. after a viewer upgrade
 codewalk serve out/ [--port 8731] [--host 127.0.0.1] [--open]       # static server, Cache-Control: no-store
-codewalk screenshot out/ (--all | --step ID ...) [-o DIR|file.png] [--width 1440 --height 900] [--dark] [--timeout S]
+codewalk screenshot out/ (--all [--level N] | --step ID ...) [-o DIR|file.png] [--width 1440 --height 900] [--dark] [--timeout S]
 ```
 
 `check` verifies: the spec imports and defines one `Walkthrough`; entry exists; every
@@ -332,7 +371,8 @@ statement, lists the modules it found, and refuses to overwrite without `--force
 `screenshot` needs the `screenshot` extra (Playwright) and `playwright install chromium`.
 It serves the folder over a local HTTP port, opens `?step=<id>` for each target, waits
 for the settle markers (section 8.1) and writes `NN-<step id>.png` (`00-intro.png` when
-the walkthrough has a description). A single `--step` may be written to a `.png` path.
+the walkthrough has a description). `--all --level 1` renders the overview only. A single
+`--step` may be written to a `.png` path.
 Exit codes: 1 for spec errors or a missing browser, 2 for warnings or a crash under
 `--strict`, 3 for a recording timeout.
 
@@ -383,12 +423,13 @@ viz/
     serve.py                      # static server for an output folder
     screenshot.py                 # Playwright capture of built pages (optional extra)
     scaffold.py                   # `init`: walkthrough.py template with entry detection
+    outline.py                    # levels of detail: parent assignment (summary-after rule)
     cli.py                        # typer app
     viewer/index.html             # built viewer template (committed)
   viewer/                         # Vite + React + TS source of the viewer
     src/App.tsx, components/{SchemaPane,CodePane,ObjectsPane,TextPane,NavBar,Splitter}.tsx
     src/renderers/{TableView,ArrayView,ImageView,HtmlView,JsonView,TextView,ErrorView}.tsx
-    src/{highlight,mermaid,data,theme,types}.ts, styles.css
+    src/{highlight,mermaid,outline,data,theme,types}.ts, styles.css
     fixtures/steps.json           # recording of the demo pipeline, used by `vite dev`
   examples/demo_pipeline/
     run.py, demo/{load,clean,features,train,evaluate}.py, data/raw.csv
@@ -407,7 +448,8 @@ viz/
 | M2 | Serializers for the seven display kinds, size caps, console capture, placeholders | done |
 | M3 | Viewer: five panes, navigation, Mermaid highlighting, Shiki, renderers; singlefile build; `build` and `serve` | done: both fixtures open with no console errors; one 4 MB HTML file |
 | M4 | Demo pipeline, reference walkthrough, `screenshot`, `init`, SKILL.md, README | done: `record examples/demo_pipeline/walkthroughs/train.py` gives 12 steps with no warnings; `screenshot --all` writes 13 readable pages in about 5 s; `init` output passes `check` |
-| Later | Live mode over WebSocket, `plotly` display, nested schemas, VS Code wrapper, a native `sys.monitoring` tracer for 3.12/3.13 | |
+| M5 | Levels of detail: `level=`/`parent=`, summary-after hierarchy, Up/Down navigation, level selector, breadcrumb, `screenshot --level`, demo in three levels | done: the demo records 20 steps in 3 levels with no warnings; the overview is 6 key steps; ↓ from a key step enters its details and ↑ returns |
+| Later | Live mode over WebSocket, `plotly` display, nested schemas, an outline panel listing the steps as a tree, automatic levels when none are given, VS Code wrapper, a native `sys.monitoring` tracer for 3.12/3.13 | |
 
 ## 13. Assumptions not yet confirmed
 

@@ -19,12 +19,13 @@ from typing import Any, Optional
 
 from .check import Report, ResolvedStep, ResolvedWalkthrough, _rel, analyze
 from .errors import CodewalkError
+from .outline import assign_parents, resolve_explicit
 from .pysource import read_lines
 from . import display as _helpers
 from .serialize import apply_step_budget, error_display, plain_text, to_display
 from .spec import PLACEHOLDER_RE, WalkthroughSpec
 
-PAYLOAD_VERSION = 1
+PAYLOAD_VERSION = 2
 SUPPORTS_MONITORING = "backend" in inspect.signature(bdb.Bdb.__init__).parameters
 _PACKAGE_DIR = os.path.dirname(os.path.abspath(__file__))
 _MISSING = object()
@@ -98,6 +99,7 @@ class Recording:
             "backend": self.backend,
             "duration": round(self.duration, 4),
             "schema": {"kind": diagram.kind, "source": diagram.source, "nodes": list(diagram.nodes)},
+            "levels": list(self.spec.levels),
             "warnings": list(self.warnings),
             "steps": self.steps,
         }
@@ -329,6 +331,8 @@ class Recorder(bdb.Bdb):
                     "elapsed": round(elapsed, 4),
                 },
                 "highlight": list(spec.highlight),
+                "level": spec.level,
+                "parent": None,
                 "code": self._code_block(step, current),
                 "objects": objects,
                 "text": text,
@@ -409,6 +413,7 @@ class Recorder(bdb.Bdb):
                 sys.modules["__main__"] = saved_main
         if crash is not None:
             self._steps.append(self._crash_step(crash))
+        self._assign_parents()
         self._post_warnings()
         return Recording(
             spec=spec,
@@ -472,12 +477,29 @@ class Recorder(bdb.Bdb):
             "title": f"Uncaught {type(exc).__name__}",
             "location": location,
             "highlight": [],
+            "level": min((st.step.spec.level for st in self._states), default=1),
+            "parent": None,
             "code": code,
             "objects": [],
             "text": f"The program stopped with `{message}`.",
             "traceback": formatted,
             "console": self._drain(),
         }
+
+    def _assign_parents(self) -> None:
+        """Fill the `parent` of every recorded step (see outline.py); explicit parent= first."""
+        steps = self._steps
+        if not steps:
+            return
+        by_spec = {state.step.spec.id: state.step.spec for state in self._states}
+        wanted = [by_spec[s["spec_id"]].parent if s["spec_id"] in by_spec else None for s in steps]
+        explicit = resolve_explicit(wanted, [s["spec_id"] for s in steps])
+        for s, want, got in zip(steps, wanted, explicit):
+            if want is not None and got is None:
+                self._warn(f"step '{s['spec_id']}': parent='{want}' was never recorded; the default rule was used")
+        parents = assign_parents([s["level"] for s in steps], explicit)
+        for s, p in zip(steps, parents):
+            s["parent"] = steps[p]["id"] if p is not None else None
 
     def _post_warnings(self) -> None:
         for state in self._states:

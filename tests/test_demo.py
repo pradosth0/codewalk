@@ -17,7 +17,7 @@ runner = CliRunner()
 def test_demo_walkthrough_checks_clean():
     result = runner.invoke(app, ["check", str(SPEC)])
     assert result.exit_code == 0, result.output
-    assert "ok: 9 step(s), 0 warning(s)" in result.output
+    assert "ok: 16 step(s), 0 warning(s)" in result.output
 
 
 def test_demo_walkthrough_records_every_step(tmp_path):
@@ -28,10 +28,18 @@ def test_demo_walkthrough_records_every_step(tmp_path):
     assert data["warnings"] == []
     ids = [s["id"] for s in data["steps"]]
     assert ids == [
-        "load", "duplicates", "outliers", "missing", "features",
-        "epoch.1", "epoch.2", "epoch.3", "epoch.4",
-        "fitted", "score", "report",
+        "load", "duplicates", "outliers", "fill.1", "fill.2", "clean", "features",
+        "epoch.1", "epoch.2", "error", "loss", "grad", "epoch.3", "epoch.4", "fitted",
+        "residual", "rmse", "r2", "score", "report",
     ]
+    assert data["levels"] == ["Overview", "Walkthrough", "Line by line"]
+    key_steps = [s["id"] for s in data["steps"] if s["level"] == 1]
+    assert key_steps == ["load", "clean", "features", "fitted", "score", "report"]
+    parents = {s["id"]: s["parent"] for s in data["steps"]}
+    assert parents["duplicates"] == parents["fill.2"] == "clean"
+    assert parents["epoch.1"] == parents["epoch.4"] == "fitted"
+    assert parents["error"] == parents["grad"] == "epoch.3"
+    assert parents["r2"] == "score" and parents["report"] is None
     kinds = {o["display"]["kind"] for s in data["steps"] for o in s["objects"]}
     assert kinds == {"table", "json", "array", "image", "html"}, kinds
     by_id = {s["id"]: s for s in data["steps"]}

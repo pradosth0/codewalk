@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Literal, Optional
 
 from .errors import SpecError
+from .outline import trailing_details
 from .pysource import (
     enclosing_function,
     executable_lines,
@@ -273,5 +274,67 @@ def analyze(spec: WalkthroughSpec) -> Report:
         if rs is not None:
             resolved_steps.append(rs)
 
+    _check_levels(spec, errors, warnings)
+
     resolved = ResolvedWalkthrough(spec=spec, root=root, steps=resolved_steps) if not errors else None
     return Report(errors=errors, warnings=warnings, resolved=resolved)
+
+
+def _check_levels(spec: WalkthroughSpec, errors: list[Problem], warnings: list[Problem]) -> None:
+    """Levels of detail: explicit parents must exist and be shallower; warn about structures
+    the summary-after rule will not read the way the author probably meant."""
+    steps = spec.steps
+    if not steps:
+        return
+    by_id = {s.id: s for s in steps}
+    for step in steps:
+        if step.parent is None:
+            continue
+        target = by_id.get(step.parent)
+        if target is None:
+            errors.append(Problem("error", f"parent={step.parent!r} is not the id of any step", step.id))
+        elif target.level >= step.level:
+            errors.append(
+                Problem(
+                    "error",
+                    f"parent={step.parent!r} is at level {target.level}, which is not shallower than this step's level {step.level}",
+                    step.id,
+                )
+            )
+    levels = [s.level for s in steps]
+    explicit = [s.parent for s in steps]
+    if max(levels) > min(levels):
+        trailing = trailing_details(levels, explicit)
+        if trailing:
+            ids = ", ".join(f"'{steps[i].id}'" for i in trailing)
+            warnings.append(
+                Problem(
+                    "warning",
+                    f"steps {ids} are deeper than the steps around them but no shallower step follows them, "
+                    "so they will hang off the previous one. A key step summarises the details before it: "
+                    "add one after them (when='return' or after= in the caller) or set parent= on them",
+                )
+            )
+        for i, step in enumerate(steps[:-1]):
+            following = steps[i + 1]
+            if following.level <= step.level or following.parent is not None:
+                continue
+            try:
+                loc = step.location
+            except SpecError:
+                continue
+            if step.mode == "before" and loc.function is not None:
+                warnings.append(
+                    Problem(
+                        "warning",
+                        f"level {step.level} step at the entry of {loc.function}() is followed by deeper steps; "
+                        f"they will belong to the next level-{step.level} step, not to this one. To summarise "
+                        f"{loc.function}(), pause at its return (when='return') or in the caller after the call (after=), "
+                        f"or set parent='{step.id}' on the deeper steps",
+                        step.id,
+                    )
+                )
+    if spec.levels and len(spec.levels) < max(levels):
+        warnings.append(
+            Problem("warning", f"levels= names {len(spec.levels)} level(s) but steps go up to level {max(levels)}")
+        )

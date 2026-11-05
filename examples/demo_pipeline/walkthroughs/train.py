@@ -1,7 +1,11 @@
-"""Reference walkthrough for the demo pipeline.
+"""Reference walkthrough for the demo pipeline, in three levels of detail.
 
     uv run codewalk record examples/demo_pipeline/walkthroughs/train.py -o out/demo
     uv run codewalk serve out/demo --open
+
+Level 1 is one key step per stage (what a project manager needs), level 2 the normal
+walk, level 3 line by line inside one training epoch. A key step sits where a stage's
+result is visible (its return) and summarises the deeper steps recorded before it.
 """
 
 from codewalk import Walkthrough
@@ -12,12 +16,13 @@ walkthrough = Walkthrough(
     `run.py` reads a daily bike-rental export, cleans it, turns it into a numeric
     matrix, fits a linear model by gradient descent and reports how well it fits.
 
-    This walkthrough stops at each stage and shows the objects as they are at that
-    moment: the frame, the design matrix, the weights while they are still moving,
-    and the final metrics. Use **Next** (or the right arrow key) to step through it.
+    **Next** walks the six key steps, one per stage, each showing that stage's
+    result. Press **Down** (or ↓) on a key step to see how it was produced, step by
+    step, and **Up** (↑) to come back to the summary. "Walk at 3" visits everything.
     """,
     entry="run.py --epochs 120",
     root="..",
+    levels=["Overview", "Walkthrough", "Line by line"],
     schema="""
     flowchart LR
       raw[(data/raw.csv)] --> load[Load] --> clean[Clean] --> feats[Features]
@@ -25,8 +30,10 @@ walkthrough = Walkthrough(
     """,
 )
 
+# ----------------------------------------------------------------------------- load
 walkthrough.step(
     id="load",
+    level=1,
     title="Read the raw export",
     at="demo/load.py::load_csv",
     when="return",
@@ -42,6 +49,7 @@ walkthrough.step(
     """,
 )
 
+# ----------------------------------------------------------------------------- clean
 walkthrough.step(
     id="duplicates",
     title="Drop duplicated rows",
@@ -75,29 +83,52 @@ walkthrough.step(
 )
 
 walkthrough.step(
-    id="missing",
-    title="Fill missing sensor readings",
-    at="demo/clean.py::clean",
-    when="return",
+    id="fill",
+    title="Fill a sensor column",
+    after="demo/clean.py:28",
+    hit="all",
     highlight="clean",
-    show={"report": "__return__[1]", "summary": "__return__[0].describe()", "clean": "__return__[0]"},
+    focus="demo/clean.py:25-28",
+    show={"column": "column", "gaps": "int(missing.sum())", "median": "round(df[column].median(), 1)", "filled": "df[column].describe()"},
     text="""
-    `clean` returns two things: the frame and the report. Temperature and humidity are
-    sensor columns with occasional gaps, filled with each column's median. The
-    `report` tab counts every intervention.
+    Column `{{column}}`: {{gaps}} empty readings were replaced with the column's
+    median, {{median}}.
 
-    `summary` is `describe()` of the cleaned frame: the maximum of `rentals` is now
-    plausible, and no column has fewer values than the others.
+    The median is robust to the odd extreme reading, and filling rather than dropping
+    keeps the day's other columns. `filled` is `describe()` of the column after the
+    fill: the count now matches the number of rows.
     """,
 )
 
 walkthrough.step(
+    id="clean",
+    level=1,
+    title="Clean the frame",
+    at="demo/clean.py::clean",
+    when="return",
+    highlight="clean",
+    show={"report": "__return__[1]", "clean": "__return__[0]", "summary": "__return__[0].describe()"},
+    text="""
+    `clean` returns the cleaned frame and a report of what it changed: duplicated
+    rows dropped, counter glitches removed, empty sensor readings filled with the
+    column median. 183 rows went in, 178 come out, and the `report` tab counts every
+    intervention.
+
+    `summary` is `describe()` of the result: the maximum of `rentals` is now
+    plausible, and no column has fewer values than the others. Press **Down** to see
+    each of the three interventions as it happened.
+    """,
+)
+
+# ----------------------------------------------------------------------------- features
+walkthrough.step(
     id="features",
+    level=1,
     title="Build the design matrix",
     at="demo/features.py::build_features",
     when="return",
     highlight="feats",
-    focus="demo/features.py:27-29",
+    focus="demo/features.py:26-28",
     show={"X": "X", "names": "names", "y": "y", "scaled": "scaled"},
     text="""
     The model only understands numbers, so each day becomes one row of `X`:
@@ -113,6 +144,9 @@ walkthrough.step(
     """,
 )
 
+# ----------------------------------------------------------------------------- train
+# The loop step is declared first because its first hit (epoch 0) comes before the
+# line-by-line steps (epoch 10); those three are summarised by the hit at epoch 10.
 walkthrough.step(
     id="epoch",
     title="One gradient step",
@@ -133,25 +167,120 @@ walkthrough.step(
 )
 
 walkthrough.step(
+    id="error",
+    level=3,
+    title="Predict and measure the error",
+    after="demo/train.py:21",
+    condition="epoch == 10",
+    highlight="train",
+    focus="demo/train.py:20-21",
+    show={"error": "error", "pred": "pred", "y": "y", "epoch": "epoch"},
+    text="""
+    Inside epoch {{epoch}}. `pred` is the model's guess for every day with the
+    current weights, `error` the signed difference to the truth `y`: positive where
+    the model predicts too many rentals, negative where too few.
+    """,
+)
+
+walkthrough.step(
+    id="loss",
+    level=3,
+    title="The loss is the mean squared error",
+    after="demo/train.py:22",
+    condition="epoch == 10",
+    highlight="train",
+    focus="demo/train.py:22-23",
+    show={"loss": "f'{loss:,.0f}'", "error": "error"},
+    text="""
+    Squaring the errors makes big misses count much more than small ones and removes
+    the sign; the mean turns it into a single number, {{loss}}, that gradient descent
+    will push down. It is appended to `history` so the curve can be drawn later.
+    """,
+)
+
+walkthrough.step(
+    id="grad",
+    level=3,
+    title="The gradient points uphill",
+    after="demo/train.py:24",
+    condition="epoch == 10",
+    highlight="train",
+    focus="demo/train.py:24-25",
+    show={"grad": "grad", "names": "self.names", "w": "self.w"},
+    text="""
+    `grad` is the derivative of the loss with respect to each weight: `X.T @ error`
+    sums, for every column, the error weighted by that feature. A positive entry means
+    increasing that weight would increase the loss, so the next line moves the weight
+    the other way, scaled by the learning rate.
+    """,
+)
+
+walkthrough.step(
     id="fitted",
-    title="The fitted model",
+    level=1,
+    title="Fit the model",
     at="demo/train.py::LinearModel.fit",
     when="return",
     highlight="train",
     show={"model": "__return__", "weights": "self.w", "loss": "plot_loss(self.history)"},
     text="""
-    `fit` returns the model itself so that `LinearModel(names).fit(X, y)` reads as one
-    expression. The `model` tab is the object's own HTML representation (its
-    `_repr_html_` method): the weight of each named feature.
+    Training is 120 passes of gradient descent over the whole matrix. `fit` returns
+    the model itself so that `LinearModel(names).fit(X, y)` reads as one expression.
+    The `model` tab is the object's own HTML representation (its `_repr_html_`
+    method): the weight of each named feature.
 
-    Because the numeric columns were standardised, their weights are comparable:
-    a one-standard-deviation warmer day adds about as many rentals as the
-    temperature weight says, rain costs the `weather=rain` weight.
+    Because the numeric columns were standardised, their weights are comparable: a
+    one-standard-deviation warmer day adds about as many rentals as the temperature
+    weight says, rain costs the `weather=rain` weight. **Down** shows four of the
+    passes; down again from one of them, the lines inside a pass.
+    """,
+)
+
+# ----------------------------------------------------------------------------- evaluate
+walkthrough.step(
+    id="residual",
+    title="Residuals",
+    after="demo/evaluate.py:14",
+    highlight="eval",
+    show={"residual": "residual", "pred": "pred"},
+    text="""
+    `residual` is truth minus prediction for every day, the raw material of every
+    metric below. Its mean is close to zero (the bias weight absorbs any constant
+    offset); its spread is what the metrics measure.
+    """,
+)
+
+walkthrough.step(
+    id="rmse",
+    title="Root mean squared error",
+    after="demo/evaluate.py:16",
+    highlight="eval",
+    focus="demo/evaluate.py:15-16",
+    show={"rmse": "round(rmse)", "mae": "round(mae)", "residual": "residual"},
+    text="""
+    `rmse` ({{rmse}}) is the square root of the training loss, so it is in rentals per
+    day again. `mae` ({{mae}}) is the plain average miss; it is smaller because the
+    squared error weights the worst days more heavily.
+    """,
+)
+
+walkthrough.step(
+    id="r2",
+    title="R squared",
+    after="demo/evaluate.py:17",
+    highlight="eval",
+    focus="demo/evaluate.py:17",
+    show={"r2": "round(r2, 3)", "variance": "float(np.sum((y - y.mean()) ** 2))", "unexplained": "float(np.sum(residual**2))"},
+    text="""
+    `r2` = 1 minus unexplained variance over total variance: {{r2}} means the model
+    accounts for about 90 % of the day-to-day variation in rentals. A model that
+    always predicted the mean would score 0.
     """,
 )
 
 walkthrough.step(
     id="score",
+    level=1,
     title="Score the fit",
     at="demo/evaluate.py::score",
     when="return",
@@ -169,8 +298,10 @@ walkthrough.step(
     """,
 )
 
+# ----------------------------------------------------------------------------- report
 walkthrough.step(
     id="report",
+    level=1,
     title="Report the result",
     at="run.py:36",
     highlight="report",

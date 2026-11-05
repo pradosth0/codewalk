@@ -24,7 +24,8 @@ uv run codewalk serve out/demo --open                        # or open out/demo/
 
 `examples/demo_pipeline` is a five-stage pipeline (load, clean, features, train by
 gradient descent, evaluate) and `walkthroughs/train.py` is the reference walkthrough:
-nine steps, one of them inside the training loop with four captured iterations.
+six key steps a reader walks first, the normal walk underneath (including four captured
+iterations of the training loop), and three line-by-line steps inside one epoch.
 
 To look at every page without a browser session (the way an agent reviews its work):
 
@@ -57,6 +58,7 @@ walkthrough = Walkthrough(
 walkthrough.step(
     id="outliers",
     title="Remove counter glitches",
+    level=2,                              # 1 = key step (overview), 2 = default, 3 = line by line
     at="demo/clean.py:23",                # pause before line 23; after="..." pauses once it has run
     highlight="clean",                    # schema node to mark as current
     focus="demo/clean.py:21-23",          # lines to emphasise (code= picks the window; default: the function)
@@ -75,12 +77,20 @@ walkthrough.step(
 )
 
 walkthrough.step(
+    id="score", level=1,                  # a key step summarises the deeper steps recorded before it
     at="demo/evaluate.py::score", when="return",   # function entry, or its return with __return__
     highlight="eval",
     show={"metrics": "__return__"},
     text="...",
 )
 ```
+
+Levels of detail: the viewer walks one level at a time. Next and Prev skip deeper steps,
+Down (↓) enters the details of the current step, Up (↑) returns to the step that
+summarises them, and a "walk at" selector visits everything up to a level. A key step
+owns the deeper steps recorded before it, so it sits where a stage's result is visible;
+`parent="id"` overrides that when needed. `codewalk screenshot out --all --level 1`
+renders the overview only.
 
 What the objects pane can show: pandas DataFrames and Series, numpy arrays and torch
 tensors, matplotlib figures, PIL images and image arrays (`cw.image(arr)`), objects with
@@ -99,7 +109,7 @@ program crashes, the traceback is recorded as the last step.
 | `codewalk init [DIR] [--entry ...]` | Scaffold `walkthrough.py` with the detected entry script |
 | `codewalk check walkthrough.py` | Validate paths, lines, expressions and schema ids without running |
 | `codewalk record walkthrough.py -o out` | Run once; write `out/steps.json` and `out/index.html` (`--strict`, `--timeout`, `--backend`, `--json-only`) |
-| `codewalk screenshot out --all` | Render every step to PNG with Playwright (`--step ID`, `--dark`, `--width/--height`) |
+| `codewalk screenshot out --all` | Render every step to PNG with Playwright (`--level N`, `--step ID`, `--dark`, `--width/--height`) |
 | `codewalk serve out [--open]` | Serve the folder locally |
 | `codewalk build out/steps.json` | Rebuild `index.html` from a recording, e.g. after a viewer upgrade |
 
@@ -128,7 +138,8 @@ works for any agent.
   drives the page with Playwright and waits for the panes to settle.
 - The viewer (`viewer/`, Vite + React + TypeScript) renders the schema with Mermaid and
   the code with Shiki, follows the system colour scheme, supports keyboard navigation
-  and `?step=<id>` deep links, and jumps to a step when a schema node is clicked.
+  (arrows: ← → at the current level, ↓ ↑ between levels), `?step=<id>` deep links, and
+  jumps to a step when a schema node is clicked.
 
 ## Development
 

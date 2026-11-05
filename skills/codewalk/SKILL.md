@@ -31,8 +31,10 @@ once before writing your first one.
 3. **Draw the schema.** 4 to 9 nodes: stages for a pipeline, components for a
    service, the call graph for an algorithm. Use Mermaid `flowchart LR` text, or a
    plain list of stage names. Every step highlights one of these nodes.
-4. **Choose 6 to 15 breakpoints** in execution order, one idea each: a stage's
-   input, what a key line produced, a loop at a few iterations, the result.
+4. **Choose the breakpoints in three levels** (see *Levels of detail*): one key step
+   per schema node at level 1, 6 to 15 steps of the normal walk at level 2, and
+   line-by-line steps at level 3 only where the implementation is not obvious.
+   All in execution order, one idea each.
 5. **Scaffold and write.** `codewalk init` writes a commented `walkthrough.py` that
    already passes `check`; fill in the steps.
 6. **Validate and record.** `codewalk check walkthrough.py` (static, instant), fix,
@@ -55,11 +57,13 @@ walkthrough = Walkthrough(
     description="Markdown shown before step 1.",
     env={"MPLBACKEND": "Agg"},             # optional extra environment for the run
     timeout=120,                           # seconds, default 600
+    levels=["Overview", "Walkthrough", "Line by line"],   # optional names for the levels of detail
 )
 
 walkthrough.step(
     id="clean",                            # stable id: ?step=clean deep links, screenshot --step clean
     title="Drop bad rows",
+    level=2,                               # 1 = key step, 2 = default walk, 3 = line by line (any int >= 1)
     at="demo/clean.py:23",                 # pause BEFORE line 23 runs
     highlight="clean",                     # node id (or list) in the schema; "Clean" in a list schema -> "clean"
     code="demo/clean.py::clean",           # left pane; default: the enclosing function (or 15 lines around)
@@ -92,6 +96,34 @@ call functions but must not mutate state: they run inside the real program.
 
 Paths are relative to `root`. Line numbers refer to the files as they are when you
 record.
+
+## Levels of detail
+
+Readers start with the key steps and go deeper only where they need to, without asking
+you again. Every step has a `level` (default 2); the viewer walks one level at a time:
+**Next/Prev** skip deeper steps, **Down** (↓) enters the details of the current step,
+**Up** (↑) returns to the step that summarises them, and a "walk at" selector visits
+every step up to a level. Unless the person asks for something else, produce three:
+
+| Level | For whom | What it holds |
+|---|---|---|
+| 1 | a project manager | one key step per schema node, showing the stage's result; 4 to 9 steps that read as a complete story on their own |
+| 2 | a teammate who must understand and vouch for the output | the normal walk: inputs, what key lines produced, a loop at a few iterations |
+| 3 | yourself, debugging or learning the implementation | line by line, only inside the parts that are not obvious; every non-obvious step explained |
+
+How steps are nested is derived from the recorded order, with one rule: **a key step
+summarises the deeper steps recorded before it**, back to the previous step at its
+level. So put a level-1 step where the stage's result is visible, at the stage
+function's return (`when="return"`) or in the caller right after the call (`after=`),
+and let its details come before it. Do not put a key step at a function's entry with
+its details after it; `check` warns about that. Deeper steps at the very end attach to
+the previous key step. For a different nesting, set `parent="step-id"` on the deeper
+step. Declaration order must still follow first execution: a `hit="all"` loop step is
+declared before the level-3 steps inside one of its iterations, and its hit after
+those lines summarises them.
+
+`codewalk screenshot out --all --level 1` renders only the overview; read those pages
+first and ask whether they tell the whole story on their own.
 
 ## Choosing breakpoints
 
@@ -126,6 +158,9 @@ introduction: what the program does and what the walkthrough will show.
 | `warning: hit=5 was never satisfied` | fewer hits than expected | lower `hit` or use `hit="all"` |
 | `warning: show['df'] = ... raised NameError` plus the names that were available | wrong frame or too early | use a name from the list, or move to `after=` / `when="return"` |
 | `warning: steps were recorded in a different order than declared` | your model of the flow is off | reorder the steps to match the run |
+| `warning: ... level 1 step at the entry of f() is followed by deeper steps` | the key step would not own its details | pause at the return or after the call instead, or set `parent=` |
+| `warning: steps ... no shallower step follows them` | trailing details with no summary | add a key step after them or set `parent=` |
+| `error: parent='x' is not the id of any step` / `not shallower` | a bad explicit parent | name an existing step with a lower level |
 | last step is a `crash` | the program raised | the traceback is a step; fix the invocation or explain the failure |
 
 `codewalk record --strict` exits non-zero on any warning; use it in CI.
@@ -136,7 +171,7 @@ introduction: what the program does and what the walkthrough will show.
 codewalk init [DIR] [--entry "run.py --flag"] [-o walkthrough.py]   # scaffold
 codewalk check walkthrough.py                                       # validate without running
 codewalk record walkthrough.py -o out [--strict] [--timeout S]      # run once -> out/steps.json + out/index.html
-codewalk screenshot out --all | --step ID [-o DIR|file.png] [--dark] [--width W --height H]
+codewalk screenshot out --all [--level N] | --step ID [-o DIR|file.png] [--dark] [--width W --height H]
 codewalk serve out [--port 8731] [--open]                           # local server for the page
 codewalk build out/steps.json                                       # rebuild index.html from a recording
 ```

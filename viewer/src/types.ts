@@ -114,6 +114,8 @@ export interface Step {
   title: string
   location: Location | null
   highlight: string[]
+  level?: number
+  parent?: string | null
   code: Code | null
   objects: ObjectEntry[]
   text: string
@@ -131,6 +133,7 @@ export interface Recording {
   backend: string
   duration: number
   schema: { kind: string; source: string; nodes: string[] }
+  levels?: string[]
   warnings: string[]
   steps: Step[]
 }

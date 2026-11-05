@@ -670,3 +670,40 @@ pre {
 .nav-btn.active {
   background: var(--accent-bg);
 }
+
+/* levels of detail */
+.nav-group {
+  display: flex;
+  gap: 4px;
+}
+
+.detail-select {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.detail-select .nav-btn {
+  min-width: 28px;
+  padding: 4px 8px;
+}
+
+.level-badge {
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 10px;
+  background: var(--accent-bg);
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.crumbs {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 50%;
+}
+
+.crumb-sep {
+  opacity: 0.6;
+}
