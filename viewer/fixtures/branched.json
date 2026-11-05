@@ -1,0 +1,741 @@
+{
+"version": 2,
+"title": "Branched schema (dev fixture)",
+"description": "A copy of the demo with a non-linear schema, so `vite dev` (`?fixture=branched`) exercises the Mermaid path; objects are stripped to keep it small.",
+"entry": "run.py --epochs 120",
+"recorded_at": "2026-11-05T14:17:34+00:00",
+"python": "3.14.4",
+"backend": "monitoring",
+"duration": 2.4493,
+"schema": {
+"kind": "mermaid",
+"source": "flowchart LR\n  raw[(data/raw.csv)] --> load[Load] --> clean[Clean] --> feats[Features]\n  feats --> train[Train] --> eval[Evaluate] --> report[Report]\n  clean -.-> report\n",
+"nodes": [
+"raw",
+"load",
+"clean",
+"feats",
+"train",
+"eval",
+"report"
+]
+},
+"levels": [
+"Overview",
+"Walkthrough",
+"Line by line"
+],
+"warnings": [],
+"steps": [
+{
+"id": "load",
+"spec_id": "load",
+"index": 1,
+"label": "1",
+"kind": "step",
+"title": "Read the raw export",
+"location": {
+"file": "demo/load.py",
+"line": 17,
+"paused_line": 17,
+"function": "load_csv",
+"mode": "return",
+"hit": 1,
+"elapsed": 1.0196
+},
+"highlight": [
+"load"
+],
+"level": 1,
+"parent": null,
+"code": {
+"file": "demo/load.py",
+"start": 8,
+"end": 17,
+"current": 17,
+"focus": [],
+"source": "def load_csv(path: str) -> pd.DataFrame:\n    \"\"\"Read `path`, parse the date column and order the rows by date.\n\n    The export is not sorted and the date comes in as text, so this is the only\n    place that knows about the file format; everything downstream sees a frame.\n    \"\"\"\n    df = pd.read_csv(path)\n    df[\"date\"] = pd.to_datetime(df[\"date\"])\n    df = df.sort_values(\"date\").reset_index(drop=True)\n    return df"
+},
+"objects": [],
+"text": "`load_csv` is the only function that knows about the file format. It parses the\n`date` column (the CSV stores it as text) and sorts by date, because the export\ncomes back in a random order.\n\nThe frame has shape (183, 8). Look at the `dtypes` tab: everything numeric was\nread as a number, and `weather` stays a string column, which is dealt with later.",
+"console": ""
+},
+{
+"id": "duplicates",
+"spec_id": "duplicates",
+"index": 2,
+"label": "2",
+"kind": "step",
+"title": "Drop duplicated rows",
+"location": {
+"file": "demo/clean.py",
+"line": 19,
+"paused_line": 21,
+"function": "clean",
+"mode": "after",
+"hit": 1,
+"elapsed": 1.045
+},
+"highlight": [
+"clean"
+],
+"level": 2,
+"parent": "clean",
+"code": {
+"file": "demo/clean.py",
+"start": 14,
+"end": 30,
+"current": 19,
+"focus": [],
+"source": "def clean(raw: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, int]]:\n    \"\"\"Return a cleaned copy of `raw` and a report of what was changed.\"\"\"\n    report: dict[str, int] = {}\n\n    df = raw.drop_duplicates()\n    report[\"duplicates\"] = len(raw) - len(df)\n\n    outliers = df[\"rentals\"] > MAX_RENTALS\n    report[\"outliers\"] = int(outliers.sum())\n    df = df[~outliers].copy()\n\n    for column in SENSORS:\n        missing = df[column].isna()\n        report[f\"missing_{column}\"] = int(missing.sum())\n        df[column] = df[column].fillna(df[column].median())\n\n    return df.reset_index(drop=True), report"
+},
+"objects": [],
+"text": "The export sometimes repeats rows when it is re-run. `drop_duplicates()` removed\n3 of them (183 rows before, 180 after).\n\nEvery change `clean` makes is counted in `report`, so the run can print what it\ndid and a reviewer can tell a dataset change from a code change.",
+"console": ""
+},
+{
+"id": "outliers",
+"spec_id": "outliers",
+"index": 3,
+"label": "3",
+"kind": "step",
+"title": "Remove counter glitches",
+"location": {
+"file": "demo/clean.py",
+"line": 23,
+"paused_line": 23,
+"function": "clean",
+"mode": "before",
+"hit": 1,
+"elapsed": 1.0458
+},
+"highlight": [
+"clean"
+],
+"level": 2,
+"parent": "clean",
+"code": {
+"file": "demo/clean.py",
+"start": 14,
+"end": 30,
+"current": 23,
+"focus": [
+[
+21,
+23
+]
+],
+"source": "def clean(raw: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, int]]:\n    \"\"\"Return a cleaned copy of `raw` and a report of what was changed.\"\"\"\n    report: dict[str, int] = {}\n\n    df = raw.drop_duplicates()\n    report[\"duplicates\"] = len(raw) - len(df)\n\n    outliers = df[\"rentals\"] > MAX_RENTALS\n    report[\"outliers\"] = int(outliers.sum())\n    df = df[~outliers].copy()\n\n    for column in SENSORS:\n        missing = df[column].isna()\n        report[f\"missing_{column}\"] = int(missing.sum())\n        df[column] = df[column].fillna(df[column].median())\n\n    return df.reset_index(drop=True), report"
+},
+"objects": [],
+"text": "Two days report over 10 000 rentals, which is a counter glitch, not a busy day.\nThe `outliers` tab shows them: `rentals` is 99 999 and 123 456, the rest of the row\nlooks ordinary.\n\nWe are paused **before** line 23 runs, so `df` still contains them. The threshold\n`MAX_RENTALS` is a module constant so that it is easy to find and to question.",
+"console": ""
+},
+{
+"id": "fill.1",
+"spec_id": "fill",
+"index": 4,
+"label": "4.1",
+"kind": "step",
+"title": "Fill a sensor column (hit 1)",
+"location": {
+"file": "demo/clean.py",
+"line": 28,
+"paused_line": 25,
+"function": "clean",
+"mode": "after",
+"hit": 1,
+"elapsed": 1.0513
+},
+"highlight": [
+"clean"
+],
+"level": 2,
+"parent": "clean",
+"code": {
+"file": "demo/clean.py",
+"start": 14,
+"end": 30,
+"current": 28,
+"focus": [
+[
+25,
+28
+]
+],
+"source": "def clean(raw: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, int]]:\n    \"\"\"Return a cleaned copy of `raw` and a report of what was changed.\"\"\"\n    report: dict[str, int] = {}\n\n    df = raw.drop_duplicates()\n    report[\"duplicates\"] = len(raw) - len(df)\n\n    outliers = df[\"rentals\"] > MAX_RENTALS\n    report[\"outliers\"] = int(outliers.sum())\n    df = df[~outliers].copy()\n\n    for column in SENSORS:\n        missing = df[column].isna()\n        report[f\"missing_{column}\"] = int(missing.sum())\n        df[column] = df[column].fillna(df[column].median())\n\n    return df.reset_index(drop=True), report"
+},
+"objects": [],
+"text": "Column `temp_c`: 7 empty readings were replaced with the column's\nmedian, 18.3.\n\nThe median is robust to the odd extreme reading, and filling rather than dropping\nkeeps the day's other columns. `filled` is `describe()` of the column after the\nfill: the count now matches the number of rows.",
+"console": ""
+},
+{
+"id": "fill.2",
+"spec_id": "fill",
+"index": 5,
+"label": "4.2",
+"kind": "step",
+"title": "Fill a sensor column (hit 2)",
+"location": {
+"file": "demo/clean.py",
+"line": 28,
+"paused_line": 25,
+"function": "clean",
+"mode": "after",
+"hit": 2,
+"elapsed": 1.0543
+},
+"highlight": [
+"clean"
+],
+"level": 2,
+"parent": "clean",
+"code": {
+"file": "demo/clean.py",
+"start": 14,
+"end": 30,
+"current": 28,
+"focus": [
+[
+25,
+28
+]
+],
+"source": "def clean(raw: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, int]]:\n    \"\"\"Return a cleaned copy of `raw` and a report of what was changed.\"\"\"\n    report: dict[str, int] = {}\n\n    df = raw.drop_duplicates()\n    report[\"duplicates\"] = len(raw) - len(df)\n\n    outliers = df[\"rentals\"] > MAX_RENTALS\n    report[\"outliers\"] = int(outliers.sum())\n    df = df[~outliers].copy()\n\n    for column in SENSORS:\n        missing = df[column].isna()\n        report[f\"missing_{column}\"] = int(missing.sum())\n        df[column] = df[column].fillna(df[column].median())\n\n    return df.reset_index(drop=True), report"
+},
+"objects": [],
+"text": "Column `humidity`: 4 empty readings were replaced with the column's\nmedian, 62.0.\n\nThe median is robust to the odd extreme reading, and filling rather than dropping\nkeeps the day's other columns. `filled` is `describe()` of the column after the\nfill: the count now matches the number of rows.",
+"console": ""
+},
+{
+"id": "clean",
+"spec_id": "clean",
+"index": 6,
+"label": "5",
+"kind": "step",
+"title": "Clean the frame",
+"location": {
+"file": "demo/clean.py",
+"line": 30,
+"paused_line": 30,
+"function": "clean",
+"mode": "return",
+"hit": 1,
+"elapsed": 1.0573
+},
+"highlight": [
+"clean"
+],
+"level": 1,
+"parent": null,
+"code": {
+"file": "demo/clean.py",
+"start": 14,
+"end": 30,
+"current": 30,
+"focus": [],
+"source": "def clean(raw: pd.DataFrame) -> tuple[pd.DataFrame, dict[str, int]]:\n    \"\"\"Return a cleaned copy of `raw` and a report of what was changed.\"\"\"\n    report: dict[str, int] = {}\n\n    df = raw.drop_duplicates()\n    report[\"duplicates\"] = len(raw) - len(df)\n\n    outliers = df[\"rentals\"] > MAX_RENTALS\n    report[\"outliers\"] = int(outliers.sum())\n    df = df[~outliers].copy()\n\n    for column in SENSORS:\n        missing = df[column].isna()\n        report[f\"missing_{column}\"] = int(missing.sum())\n        df[column] = df[column].fillna(df[column].median())\n\n    return df.reset_index(drop=True), report"
+},
+"objects": [],
+"text": "`clean` returns the cleaned frame and a report of what it changed: duplicated\nrows dropped, counter glitches removed, empty sensor readings filled with the\ncolumn median. 183 rows went in, 178 come out, and the `report` tab counts every\nintervention.\n\n`summary` is `describe()` of the result: the maximum of `rentals` is now\nplausible, and no column has fewer values than the others. Press **Down** to see\neach of the three interventions as it happened.",
+"console": ""
+},
+{
+"id": "features",
+"spec_id": "features",
+"index": 7,
+"label": "6",
+"kind": "step",
+"title": "Build the design matrix",
+"location": {
+"file": "demo/features.py",
+"line": 29,
+"paused_line": 29,
+"function": "build_features",
+"mode": "return",
+"hit": 1,
+"elapsed": 1.0666
+},
+"highlight": [
+"feats"
+],
+"level": 1,
+"parent": null,
+"code": {
+"file": "demo/features.py",
+"start": 13,
+"end": 29,
+"current": 29,
+"focus": [
+[
+26,
+28
+]
+],
+"source": "def build_features(df: pd.DataFrame) -> tuple[np.ndarray, np.ndarray, list[str]]:\n    \"\"\"Return (X, y, names).\n\n    X has one row per day: a bias column, the standardised numeric columns,\n    one-hot weather indicators and the holiday flag. y is the rental count.\n    \"\"\"\n    numeric = df[NUMERIC].to_numpy(dtype=float)\n    scaled = (numeric - numeric.mean(axis=0)) / numeric.std(axis=0)\n\n    weather = np.stack([(df[\"weather\"] == w).to_numpy(dtype=float) for w in WEATHER], axis=1)\n    holiday = df[[\"holiday\"]].to_numpy(dtype=float)\n    bias = np.ones((len(df), 1))\n\n    X = np.hstack([bias, scaled, weather, holiday])\n    y = df[\"rentals\"].to_numpy(dtype=float)\n    names = [\"bias\", *NUMERIC, *(f\"weather={w}\" for w in WEATHER), \"holiday\"]\n    return X, y, names"
+},
+"objects": [],
+"text": "The model only understands numbers, so each day becomes one row of `X`:\n\n1. a constant `bias` column,\n2. the numeric sensors, standardised to mean 0 and standard deviation 1 so\n   that one learning rate suits all of them,\n3. one-hot columns for `cloudy` and `rain` (`clear` is the baseline, so it needs\n   no column of its own, which keeps the columns independent),\n4. the `holiday` flag.\n\n`names` keeps the column order, so the fitted weights can be labelled later.",
+"console": ""
+},
+{
+"id": "epoch.1",
+"spec_id": "epoch",
+"index": 8,
+"label": "7.1",
+"kind": "step",
+"title": "One gradient step (hit 1)",
+"location": {
+"file": "demo/train.py",
+"line": 25,
+"paused_line": 19,
+"function": "fit",
+"mode": "after",
+"hit": 1,
+"elapsed": 1.0677
+},
+"highlight": [
+"train"
+],
+"level": 2,
+"parent": "fitted",
+"code": {
+"file": "demo/train.py",
+"start": 17,
+"end": 26,
+"current": 25,
+"focus": [],
+"source": "    def fit(self, X: np.ndarray, y: np.ndarray, *, epochs: int = 200, lr: float = 0.1) -> \"LinearModel\":\n        n = len(y)\n        for epoch in range(epochs):\n            pred = X @ self.w\n            error = pred - y\n            loss = float(np.mean(error**2))\n            self.history.append(loss)\n            grad = 2 * X.T @ error / n\n            self.w -= lr * grad\n        return self"
+},
+"objects": [],
+"text": "Epoch 0: the mean squared error is 6,528,886.\n\nEach pass predicts with the current weights, measures the error, computes the\ngradient of the squared error and takes a step against it. The `w` tab shows the\nweights after this step and `grad` the direction they just moved in; the plot is\nthe loss so far on a log scale. The first steps do most of the work.",
+"console": ""
+},
+{
+"id": "epoch.2",
+"spec_id": "epoch",
+"index": 9,
+"label": "7.2",
+"kind": "step",
+"title": "One gradient step (hit 2)",
+"location": {
+"file": "demo/train.py",
+"line": 25,
+"paused_line": 19,
+"function": "fit",
+"mode": "after",
+"hit": 2,
+"elapsed": 1.3814
+},
+"highlight": [
+"train"
+],
+"level": 2,
+"parent": "fitted",
+"code": {
+"file": "demo/train.py",
+"start": 17,
+"end": 26,
+"current": 25,
+"focus": [],
+"source": "    def fit(self, X: np.ndarray, y: np.ndarray, *, epochs: int = 200, lr: float = 0.1) -> \"LinearModel\":\n        n = len(y)\n        for epoch in range(epochs):\n            pred = X @ self.w\n            error = pred - y\n            loss = float(np.mean(error**2))\n            self.history.append(loss)\n            grad = 2 * X.T @ error / n\n            self.w -= lr * grad\n        return self"
+},
+"objects": [],
+"text": "Epoch 1: the mean squared error is 4,058,001.\n\nEach pass predicts with the current weights, measures the error, computes the\ngradient of the squared error and takes a step against it. The `w` tab shows the\nweights after this step and `grad` the direction they just moved in; the plot is\nthe loss so far on a log scale. The first steps do most of the work.",
+"console": ""
+},
+{
+"id": "error",
+"spec_id": "error",
+"index": 10,
+"label": "8",
+"kind": "step",
+"title": "Predict and measure the error",
+"location": {
+"file": "demo/train.py",
+"line": 21,
+"paused_line": 22,
+"function": "fit",
+"mode": "after",
+"hit": 1,
+"elapsed": 1.5615
+},
+"highlight": [
+"train"
+],
+"level": 3,
+"parent": "epoch.3",
+"code": {
+"file": "demo/train.py",
+"start": 17,
+"end": 26,
+"current": 21,
+"focus": [
+[
+20,
+21
+]
+],
+"source": "    def fit(self, X: np.ndarray, y: np.ndarray, *, epochs: int = 200, lr: float = 0.1) -> \"LinearModel\":\n        n = len(y)\n        for epoch in range(epochs):\n            pred = X @ self.w\n            error = pred - y\n            loss = float(np.mean(error**2))\n            self.history.append(loss)\n            grad = 2 * X.T @ error / n\n            self.w -= lr * grad\n        return self"
+},
+"objects": [],
+"text": "Inside epoch 10. `pred` is the model's guess for every day with the\ncurrent weights, `error` the signed difference to the truth `y`: positive where\nthe model predicts too many rentals, negative where too few.",
+"console": ""
+},
+{
+"id": "loss",
+"spec_id": "loss",
+"index": 11,
+"label": "9",
+"kind": "step",
+"title": "The loss is the mean squared error",
+"location": {
+"file": "demo/train.py",
+"line": 22,
+"paused_line": 23,
+"function": "fit",
+"mode": "after",
+"hit": 1,
+"elapsed": 1.5619
+},
+"highlight": [
+"train"
+],
+"level": 3,
+"parent": "epoch.3",
+"code": {
+"file": "demo/train.py",
+"start": 17,
+"end": 26,
+"current": 22,
+"focus": [
+[
+22,
+23
+]
+],
+"source": "    def fit(self, X: np.ndarray, y: np.ndarray, *, epochs: int = 200, lr: float = 0.1) -> \"LinearModel\":\n        n = len(y)\n        for epoch in range(epochs):\n            pred = X @ self.w\n            error = pred - y\n            loss = float(np.mean(error**2))\n            self.history.append(loss)\n            grad = 2 * X.T @ error / n\n            self.w -= lr * grad\n        return self"
+},
+"objects": [],
+"text": "Squaring the errors makes big misses count much more than small ones and removes\nthe sign; the mean turns it into a single number, 257,296, that gradient descent\nwill push down. It is appended to `history` so the curve can be drawn later.",
+"console": ""
+},
+{
+"id": "grad",
+"spec_id": "grad",
+"index": 12,
+"label": "10",
+"kind": "step",
+"title": "The gradient points uphill",
+"location": {
+"file": "demo/train.py",
+"line": 24,
+"paused_line": 25,
+"function": "fit",
+"mode": "after",
+"hit": 1,
+"elapsed": 1.5621
+},
+"highlight": [
+"train"
+],
+"level": 3,
+"parent": "epoch.3",
+"code": {
+"file": "demo/train.py",
+"start": 17,
+"end": 26,
+"current": 24,
+"focus": [
+[
+24,
+25
+]
+],
+"source": "    def fit(self, X: np.ndarray, y: np.ndarray, *, epochs: int = 200, lr: float = 0.1) -> \"LinearModel\":\n        n = len(y)\n        for epoch in range(epochs):\n            pred = X @ self.w\n            error = pred - y\n            loss = float(np.mean(error**2))\n            self.history.append(loss)\n            grad = 2 * X.T @ error / n\n            self.w -= lr * grad\n        return self"
+},
+"objects": [],
+"text": "`grad` is the derivative of the loss with respect to each weight: `X.T @ error`\nsums, for every column, the error weighted by that feature. A positive entry means\nincreasing that weight would increase the loss, so the next line moves the weight\nthe other way, scaled by the learning rate.",
+"console": ""
+},
+{
+"id": "epoch.3",
+"spec_id": "epoch",
+"index": 13,
+"label": "7.3",
+"kind": "step",
+"title": "One gradient step (hit 3)",
+"location": {
+"file": "demo/train.py",
+"line": 25,
+"paused_line": 19,
+"function": "fit",
+"mode": "after",
+"hit": 3,
+"elapsed": 1.5623
+},
+"highlight": [
+"train"
+],
+"level": 2,
+"parent": "fitted",
+"code": {
+"file": "demo/train.py",
+"start": 17,
+"end": 26,
+"current": 25,
+"focus": [],
+"source": "    def fit(self, X: np.ndarray, y: np.ndarray, *, epochs: int = 200, lr: float = 0.1) -> \"LinearModel\":\n        n = len(y)\n        for epoch in range(epochs):\n            pred = X @ self.w\n            error = pred - y\n            loss = float(np.mean(error**2))\n            self.history.append(loss)\n            grad = 2 * X.T @ error / n\n            self.w -= lr * grad\n        return self"
+},
+"objects": [],
+"text": "Epoch 10: the mean squared error is 257,296.\n\nEach pass predicts with the current weights, measures the error, computes the\ngradient of the squared error and takes a step against it. The `w` tab shows the\nweights after this step and `grad` the direction they just moved in; the plot is\nthe loss so far on a log scale. The first steps do most of the work.",
+"console": ""
+},
+{
+"id": "epoch.4",
+"spec_id": "epoch",
+"index": 14,
+"label": "7.4",
+"kind": "step",
+"title": "One gradient step (hit 4)",
+"location": {
+"file": "demo/train.py",
+"line": 25,
+"paused_line": 19,
+"function": "fit",
+"mode": "after",
+"hit": 4,
+"elapsed": 1.9769
+},
+"highlight": [
+"train"
+],
+"level": 2,
+"parent": "fitted",
+"code": {
+"file": "demo/train.py",
+"start": 17,
+"end": 26,
+"current": 25,
+"focus": [],
+"source": "    def fit(self, X: np.ndarray, y: np.ndarray, *, epochs: int = 200, lr: float = 0.1) -> \"LinearModel\":\n        n = len(y)\n        for epoch in range(epochs):\n            pred = X @ self.w\n            error = pred - y\n            loss = float(np.mean(error**2))\n            self.history.append(loss)\n            grad = 2 * X.T @ error / n\n            self.w -= lr * grad\n        return self"
+},
+"objects": [],
+"text": "Epoch 119: the mean squared error is 44,165.\n\nEach pass predicts with the current weights, measures the error, computes the\ngradient of the squared error and takes a step against it. The `w` tab shows the\nweights after this step and `grad` the direction they just moved in; the plot is\nthe loss so far on a log scale. The first steps do most of the work.",
+"console": ""
+},
+{
+"id": "fitted",
+"spec_id": "fitted",
+"index": 15,
+"label": "11",
+"kind": "step",
+"title": "Fit the model",
+"location": {
+"file": "demo/train.py",
+"line": 26,
+"paused_line": 26,
+"function": "fit",
+"mode": "return",
+"hit": 1,
+"elapsed": 2.1843
+},
+"highlight": [
+"train"
+],
+"level": 1,
+"parent": null,
+"code": {
+"file": "demo/train.py",
+"start": 17,
+"end": 26,
+"current": 26,
+"focus": [],
+"source": "    def fit(self, X: np.ndarray, y: np.ndarray, *, epochs: int = 200, lr: float = 0.1) -> \"LinearModel\":\n        n = len(y)\n        for epoch in range(epochs):\n            pred = X @ self.w\n            error = pred - y\n            loss = float(np.mean(error**2))\n            self.history.append(loss)\n            grad = 2 * X.T @ error / n\n            self.w -= lr * grad\n        return self"
+},
+"objects": [],
+"text": "Training is 120 passes of gradient descent over the whole matrix. `fit` returns\nthe model itself so that `LinearModel(names).fit(X, y)` reads as one expression.\nThe `model` tab is the object's own HTML representation (its `_repr_html_`\nmethod): the weight of each named feature.\n\nBecause the numeric columns were standardised, their weights are comparable: a\none-standard-deviation warmer day adds about as many rentals as the temperature\nweight says, rain costs the `weather=rain` weight. **Down** shows four of the\npasses; down again from one of them, the lines inside a pass.",
+"console": ""
+},
+{
+"id": "residual",
+"spec_id": "residual",
+"index": 16,
+"label": "12",
+"kind": "step",
+"title": "Residuals",
+"location": {
+"file": "demo/evaluate.py",
+"line": 14,
+"paused_line": 15,
+"function": "score",
+"mode": "after",
+"hit": 1,
+"elapsed": 2.3148
+},
+"highlight": [
+"eval"
+],
+"level": 2,
+"parent": "score",
+"code": {
+"file": "demo/evaluate.py",
+"start": 11,
+"end": 18,
+"current": 14,
+"focus": [],
+"source": "def score(model: LinearModel, X: np.ndarray, y: np.ndarray) -> dict[str, float]:\n    \"\"\"Root mean squared error, mean absolute error and R squared on (X, y).\"\"\"\n    pred = model.predict(X)\n    residual = y - pred\n    rmse = float(np.sqrt(np.mean(residual**2)))\n    mae = float(np.mean(np.abs(residual)))\n    r2 = float(1 - np.sum(residual**2) / np.sum((y - y.mean()) ** 2))\n    return {\"rmse\": rmse, \"mae\": mae, \"r2\": r2}"
+},
+"objects": [],
+"text": "`residual` is truth minus prediction for every day, the raw material of every\nmetric below. Its mean is close to zero (the bias weight absorbs any constant\noffset); its spread is what the metrics measure.",
+"console": ""
+},
+{
+"id": "rmse",
+"spec_id": "rmse",
+"index": 17,
+"label": "13",
+"kind": "step",
+"title": "Root mean squared error",
+"location": {
+"file": "demo/evaluate.py",
+"line": 16,
+"paused_line": 17,
+"function": "score",
+"mode": "after",
+"hit": 1,
+"elapsed": 2.3152
+},
+"highlight": [
+"eval"
+],
+"level": 2,
+"parent": "score",
+"code": {
+"file": "demo/evaluate.py",
+"start": 11,
+"end": 18,
+"current": 16,
+"focus": [
+[
+15,
+16
+]
+],
+"source": "def score(model: LinearModel, X: np.ndarray, y: np.ndarray) -> dict[str, float]:\n    \"\"\"Root mean squared error, mean absolute error and R squared on (X, y).\"\"\"\n    pred = model.predict(X)\n    residual = y - pred\n    rmse = float(np.sqrt(np.mean(residual**2)))\n    mae = float(np.mean(np.abs(residual)))\n    r2 = float(1 - np.sum(residual**2) / np.sum((y - y.mean()) ** 2))\n    return {\"rmse\": rmse, \"mae\": mae, \"r2\": r2}"
+},
+"objects": [],
+"text": "`rmse` (210) is the square root of the training loss, so it is in rentals per\nday again. `mae` (157) is the plain average miss; it is smaller because the\nsquared error weights the worst days more heavily.",
+"console": ""
+},
+{
+"id": "r2",
+"spec_id": "r2",
+"index": 18,
+"label": "14",
+"kind": "step",
+"title": "R squared",
+"location": {
+"file": "demo/evaluate.py",
+"line": 17,
+"paused_line": 18,
+"function": "score",
+"mode": "after",
+"hit": 1,
+"elapsed": 2.3155
+},
+"highlight": [
+"eval"
+],
+"level": 2,
+"parent": "score",
+"code": {
+"file": "demo/evaluate.py",
+"start": 11,
+"end": 18,
+"current": 17,
+"focus": [
+[
+17,
+17
+]
+],
+"source": "def score(model: LinearModel, X: np.ndarray, y: np.ndarray) -> dict[str, float]:\n    \"\"\"Root mean squared error, mean absolute error and R squared on (X, y).\"\"\"\n    pred = model.predict(X)\n    residual = y - pred\n    rmse = float(np.sqrt(np.mean(residual**2)))\n    mae = float(np.mean(np.abs(residual)))\n    r2 = float(1 - np.sum(residual**2) / np.sum((y - y.mean()) ** 2))\n    return {\"rmse\": rmse, \"mae\": mae, \"r2\": r2}"
+},
+"objects": [],
+"text": "`r2` = 1 minus unexplained variance over total variance: 0.895 means the model\naccounts for about 90 % of the day-to-day variation in rentals. A model that\nalways predicted the mean would score 0.",
+"console": ""
+},
+{
+"id": "score",
+"spec_id": "score",
+"index": 19,
+"label": "15",
+"kind": "step",
+"title": "Score the fit",
+"location": {
+"file": "demo/evaluate.py",
+"line": 18,
+"paused_line": 18,
+"function": "score",
+"mode": "return",
+"hit": 1,
+"elapsed": 2.3156
+},
+"highlight": [
+"eval"
+],
+"level": 1,
+"parent": null,
+"code": {
+"file": "demo/evaluate.py",
+"start": 11,
+"end": 18,
+"current": 18,
+"focus": [],
+"source": "def score(model: LinearModel, X: np.ndarray, y: np.ndarray) -> dict[str, float]:\n    \"\"\"Root mean squared error, mean absolute error and R squared on (X, y).\"\"\"\n    pred = model.predict(X)\n    residual = y - pred\n    rmse = float(np.sqrt(np.mean(residual**2)))\n    mae = float(np.mean(np.abs(residual)))\n    r2 = float(1 - np.sum(residual**2) / np.sum((y - y.mean()) ** 2))\n    return {\"rmse\": rmse, \"mae\": mae, \"r2\": r2}"
+},
+"objects": [],
+"text": "`score` compares predictions with the truth: the root mean squared error is\n210 rentals per day, and the metrics dict also carries the mean absolute\nerror and R squared.\n\nThe plot puts actual rentals on the x axis and predictions on the y axis; a\nperfect model would sit on the dashed line. The `residual` tab is the raw\ndifference per day, useful for spotting days the model gets badly wrong.",
+"console": ""
+},
+{
+"id": "report",
+"spec_id": "report",
+"index": 20,
+"label": "16",
+"kind": "step",
+"title": "Report the result",
+"location": {
+"file": "run.py",
+"line": 36,
+"paused_line": 36,
+"function": "main",
+"mode": "before",
+"hit": 1,
+"elapsed": 2.4491
+},
+"highlight": [
+"report"
+],
+"level": 1,
+"parent": null,
+"code": {
+"file": "run.py",
+"start": 17,
+"end": 36,
+"current": 36,
+"focus": [
+[
+31,
+35
+]
+],
+"source": "def main(argv: list[str] | None = None) -> dict[str, float]:\n    parser = argparse.ArgumentParser(description=__doc__)\n    parser.add_argument(\"--data\", default=\"data/raw.csv\")\n    parser.add_argument(\"--epochs\", type=int, default=200)\n    parser.add_argument(\"--lr\", type=float, default=0.1)\n    parser.add_argument(\"--plot\", default=None, help=\"write a predicted-vs-actual PNG here\")\n    args = parser.parse_args(argv)\n\n    raw = load_csv(args.data)\n    df, report = clean(raw)\n    X, y, names = build_features(df)\n    model = LinearModel(names).fit(X, y, epochs=args.epochs, lr=args.lr)\n    metrics = score(model, X, y)\n\n    print(f\"rows: {len(raw)} raw -> {len(df)} clean ({report})\")\n    for name, value in metrics.items():\n        print(f\"{name}: {value:.3f}\")\n    if args.plot:\n        plot_predictions(y, model.predict(X)).savefig(args.plot)\n    return metrics"
+},
+"objects": [],
+"text": "Back in `main`, everything is in hand: the cleaning `report`, the `model` and\nits `metrics`. The highlighted lines print them and, with `--plot`, save the\npredicted-against-actual figure.\n\nWe are paused on the final `return`, so the **console** toggle below shows\neverything the script printed. That is the end of the run.",
+"console": ""
+}
+]
+}

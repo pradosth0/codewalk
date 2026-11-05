@@ -6,6 +6,7 @@ walkthrough = Walkthrough(
     schema="""
     flowchart LR
       load[Load] --> feats[Features] --> fit[Fit] --> plot[Plot] --> thumb[Thumbnail]
+      fit -.-> thumb
     """,
 )
 

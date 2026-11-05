@@ -170,16 +170,20 @@ def screenshot(
                 page.on("pageerror", lambda err: page_errors.append(str(err)))
                 for target in targets:
                     page.goto(f"{base}?step={target.query}", wait_until="load", timeout=wait_ms)
-                    # The viewer marks the root with the current step and each async pane with data-settled.
+                    # The viewer marks the root with the current step and every pane that renders
+                    # asynchronously (the schema, the code) with data-settled once it matches the step.
                     page.wait_for_selector(f".app[data-step={_css_string(target.id)}]", timeout=wait_ms)
-                    page.wait_for_selector('.schema[data-settled="true"]', timeout=wait_ms)
-                    page.wait_for_selector('.code[data-settled="true"]', timeout=wait_ms)
+                    page.wait_for_function(
+                        "() => Array.from(document.querySelectorAll('[data-settled]')).every((e) => e.dataset.settled === 'true')",
+                        timeout=wait_ms,
+                    )
                     page.wait_for_function(
                         "() => document.fonts.status === 'loaded' && Array.from(document.images).every((i) => i.complete)",
                         timeout=wait_ms,
                     )
                     file = out_path if single_file else out_path / target.filename
-                    page.screenshot(path=str(file))
+                    # The viewer fades content in on step changes; capture the settled state.
+                    page.screenshot(path=str(file), animations="disabled")
                     written.append(file)
                     if log:
                         log(f"wrote {file}  (step {target.label}: {target.id})")

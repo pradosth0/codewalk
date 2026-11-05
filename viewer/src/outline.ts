@@ -91,3 +91,47 @@ export function levelName(o: Outline, level: number): string {
   const name = o.names[level - 1]
   return name ? name : `level ${level}`
 }
+
+/** Indices of the parents of `pos`, outermost first. */
+export function ancestors(o: Outline, pos: number): number[] {
+  const out: number[] = []
+  let p = parentOf(o, pos)
+  let guard = 0
+  while (p >= 0 && guard++ < 32) {
+    out.unshift(p)
+    p = parentOf(o, p)
+  }
+  return out
+}
+
+/** Indices of the key steps (the shallowest level), in order. */
+export function keySteps(o: Outline): number[] {
+  const out: number[] = []
+  o.levels.forEach((l, i) => {
+    if (l === o.minLevel) out.push(i)
+  })
+  return out
+}
+
+/** Which key step owns `pos`: a key step summarises the steps recorded before it, back to
+ *  the previous key step. Returns an index into keySteps(); -1 at the intro, the last
+ *  segment for trailing details. */
+export function segmentOf(o: Outline, pos: number): number {
+  if (pos < 0) return -1
+  const keys = keySteps(o)
+  for (let i = 0; i < keys.length; i++) if (keys[i] >= pos) return i
+  return keys.length - 1
+}
+
+/** Progress through the walkthrough in [0, 1]: whole segments for the key steps passed,
+ *  plus the fraction of the current segment's details already visited. */
+export function progressAt(o: Outline, pos: number): number {
+  const keys = keySteps(o)
+  if (pos < 0 || keys.length === 0) return 0
+  const seg = segmentOf(o, pos)
+  const end = keys[seg]
+  if (pos >= end) return Math.min(1, (seg + 1) / keys.length)
+  const start = seg > 0 ? keys[seg - 1] : -1
+  const within = (pos - start) / (end - start)
+  return Math.min(1, (seg + within) / keys.length)
+}

@@ -4,8 +4,30 @@
     {
       "name": "codewalk-out",
       "runtimeExecutable": "uv",
-      "runtimeArgs": ["run", "codewalk", "serve", "out", "--port", "8731"],
+      "runtimeArgs": [
+        "run",
+        "codewalk",
+        "serve",
+        "out",
+        "--port",
+        "8731"
+      ],
       "port": 8731
+    },
+    {
+      "name": "viewer-dev",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "viewer",
+        "run",
+        "dev",
+        "--",
+        "--port",
+        "5173",
+        "--strictPort"
+      ],
+      "port": 5173
     }
   ]
 }

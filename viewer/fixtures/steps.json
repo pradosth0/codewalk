@@ -1,12 +1,12 @@
 {
  "version": 2,
  "title": "How the demo pipeline trains a rentals model",
- "description": "`run.py` reads a daily bike-rental export, cleans it, turns it into a numeric\nmatrix, fits a linear model by gradient descent and reports how well it fits.\n\n**Next** walks the six key steps, one per stage, each showing that stage's\nresult. Press **Down** (or ↓) on a key step to see how it was produced, step by\nstep, and **Up** (↑) to come back to the summary. \"Walk at 3\" visits everything.",
+ "description": "`run.py` reads a daily bike-rental export, cleans it, turns it into a numeric\nmatrix, fits a linear model by gradient descent and reports how well it fits.\n\n**Next** walks the six key steps, one per stage, each showing that stage's\nresult. Press **Down** (or ↓) on a key step to see how it was produced, step by\nstep, and **Up** (↑) to come back to the summary. The outline (`o`) lists every\nstep and lets you walk at \"Line by line\" to visit them all.",
  "entry": "run.py --epochs 120",
- "recorded_at": "2026-11-05T13:37:10+00:00",
+ "recorded_at": "2026-11-05T14:17:34+00:00",
  "python": "3.14.4",
  "backend": "monitoring",
- "duration": 1.0201,
+ "duration": 2.4493,
  "schema": {
   "kind": "mermaid",
   "source": "flowchart LR\n  raw[(data/raw.csv)] --> load[Load] --> clean[Clean] --> feats[Features]\n  feats --> train[Train] --> eval[Evaluate] --> report[Report]\n",
@@ -41,7 +41,7 @@
     "function": "load_csv",
     "mode": "return",
     "hit": 1,
-    "elapsed": 0.5426
+    "elapsed": 1.0196
    },
    "highlight": [
     "load"
@@ -401,7 +401,7 @@
     "function": "clean",
     "mode": "after",
     "hit": 1,
-    "elapsed": 0.5495
+    "elapsed": 1.045
    },
    "highlight": [
     "clean"
@@ -473,7 +473,7 @@
     "function": "clean",
     "mode": "before",
     "hit": 1,
-    "elapsed": 0.5515
+    "elapsed": 1.0458
    },
    "highlight": [
     "clean"
@@ -685,7 +685,7 @@
     "function": "clean",
     "mode": "after",
     "hit": 1,
-    "elapsed": 0.5562
+    "elapsed": 1.0513
    },
    "highlight": [
     "clean"
@@ -807,7 +807,7 @@
     "function": "clean",
     "mode": "after",
     "hit": 2,
-    "elapsed": 0.5583
+    "elapsed": 1.0543
    },
    "highlight": [
     "clean"
@@ -929,7 +929,7 @@
     "function": "clean",
     "mode": "return",
     "hit": 1,
-    "elapsed": 0.559
+    "elapsed": 1.0573
    },
    "highlight": [
     "clean"
@@ -1341,7 +1341,7 @@
     "function": "build_features",
     "mode": "return",
     "hit": 1,
-    "elapsed": 0.5642
+    "elapsed": 1.0666
    },
    "highlight": [
     "feats"
@@ -1586,7 +1586,7 @@
     "function": "fit",
     "mode": "after",
     "hit": 1,
-    "elapsed": 0.5653
+    "elapsed": 1.0677
    },
    "highlight": [
     "train"
@@ -1726,7 +1726,7 @@
     "function": "fit",
     "mode": "after",
     "hit": 2,
-    "elapsed": 0.7163
+    "elapsed": 1.3814
    },
    "highlight": [
     "train"
@@ -1866,7 +1866,7 @@
     "function": "fit",
     "mode": "after",
     "hit": 1,
-    "elapsed": 0.7706
+    "elapsed": 1.5615
    },
    "highlight": [
     "train"
@@ -2067,7 +2067,7 @@
     "function": "fit",
     "mode": "after",
     "hit": 1,
-    "elapsed": 0.7708
+    "elapsed": 1.5619
    },
    "highlight": [
     "train"
@@ -2166,7 +2166,7 @@
     "function": "fit",
     "mode": "after",
     "hit": 1,
-    "elapsed": 0.7709
+    "elapsed": 1.5621
    },
    "highlight": [
     "train"
@@ -2298,7 +2298,7 @@
     "function": "fit",
     "mode": "after",
     "hit": 3,
-    "elapsed": 0.7711
+    "elapsed": 1.5623
    },
    "highlight": [
     "train"
@@ -2438,7 +2438,7 @@
     "function": "fit",
     "mode": "after",
     "hit": 4,
-    "elapsed": 0.8607
+    "elapsed": 1.9769
    },
    "highlight": [
     "train"
@@ -2578,7 +2578,7 @@
     "function": "fit",
     "mode": "return",
     "hit": 1,
-    "elapsed": 0.9251
+    "elapsed": 2.1843
    },
    "highlight": [
     "train"
@@ -2671,7 +2671,7 @@
     "function": "score",
     "mode": "after",
     "hit": 1,
-    "elapsed": 0.9793
+    "elapsed": 2.3148
    },
    "highlight": [
     "eval"
@@ -2807,7 +2807,7 @@
     "function": "score",
     "mode": "after",
     "hit": 1,
-    "elapsed": 0.9795
+    "elapsed": 2.3152
    },
    "highlight": [
     "eval"
@@ -2915,7 +2915,7 @@
     "function": "score",
     "mode": "after",
     "hit": 1,
-    "elapsed": 0.9797
+    "elapsed": 2.3155
    },
    "highlight": [
     "eval"
@@ -2981,7 +2981,7 @@
     "function": "score",
     "mode": "return",
     "hit": 1,
-    "elapsed": 0.9797
+    "elapsed": 2.3156
    },
    "highlight": [
     "eval"
@@ -3100,7 +3100,7 @@
     "function": "main",
     "mode": "before",
     "hit": 1,
-    "elapsed": 1.02
+    "elapsed": 2.4491
    },
    "highlight": [
     "report"

@@ -18,7 +18,8 @@ walkthrough = Walkthrough(
 
     **Next** walks the six key steps, one per stage, each showing that stage's
     result. Press **Down** (or ↓) on a key step to see how it was produced, step by
-    step, and **Up** (↑) to come back to the summary. "Walk at 3" visits everything.
+    step, and **Up** (↑) to come back to the summary. The outline (`o`) lists every
+    step and lets you walk at "Line by line" to visit them all.
     """,
     entry="run.py --epochs 120",
     root="..",

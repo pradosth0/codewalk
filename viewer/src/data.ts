@@ -7,9 +7,11 @@ export async function loadRecording(): Promise<Recording> {
   if (raw && !raw.startsWith('__CODEWALK')) {
     return JSON.parse(raw) as Recording
   }
-  const res = await fetch('/fixtures/steps.json')
+  // `?fixture=name` picks another file from fixtures/ (dev only).
+  const name = new URLSearchParams(window.location.search).get('fixture') || 'steps'
+  const res = await fetch(`/fixtures/${name}.json`)
   if (!res.ok) {
-    throw new Error(`no embedded recording, and fixtures/steps.json returned ${res.status}`)
+    throw new Error(`no embedded recording, and fixtures/${name}.json returned ${res.status}`)
   }
   return (await res.json()) as Recording
 }

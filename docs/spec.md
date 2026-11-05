@@ -282,70 +282,113 @@ those two versions is a worthwhile follow-up.
 
 ## 8. Viewer
 
-Layout, matching the original sketch:
+Layout (revamp of 2026-11-05, phases 0 and 1 of [ui-revamp-plan.md](ui-revamp-plan.md)):
 
 ```
-┌──────────────────────────────────────────────────────────────┐
-│ title                      schema (Mermaid, current node lit) │
-├──────────────────────────────┬───────────────────────────────┤
-│ code                         │ objects / plot (tabs)          │
-│ file:line header             ├───────────────────────────────┤
-│ line numbers, current line,  │ explanation (markdown)        │
-│ focus lines, rest dimmed     │                               │
-├──────────────────────────────┴───────────────────────────────┤
-│ ◀ Prev    step 3 / 12  "Read the raw CSV"    Next ▶   console │
-└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ ≡ Outline   title                                        ⓘ  ⌨  ☾ (theme)     │  top bar + progress line
+├──────────────────────────────────────────────────────────────────────────────┤
+│   (raw.csv) ─▶ Load ─▶ [Clean] ─▶ Features ─▶ Train ─▶ Evaluate ─▶ Report   │  schema strip (collapsible)
+├──────────────────────────────────────────────────────────────────────────────┤
+│ Overview · step 2 of 6 · in …       Clean the frame        ↑ Up   ▾ 4 details │  step header
+├────────────────────────────────┬─────────────────────────────────────────────┤
+│ code (file · fn · paused chip) │ explanation (sized to its text, max 45%)    │
+│ gutter, current line, focus    ├─────────────────────────────────────────────┤
+│ [program output drawer]        │ objects (tabs; takes the remaining height)  │
+├────────────────────────────────┴─────────────────────────────────────────────┤
+│ ‹ Prev                   ● ● ○ ○ ○ ○  (key steps)                    Next ›  │  footer
+└──────────────────────────────────────────────────────────────────────────────┘
 ```
 
 Implemented in `viewer/` (Vite 6, React 19, TypeScript, strict):
 
+- Shell: `TopBar` (outline toggle, title, warnings and run metadata popovers, keyboard
+  help, theme control) with a progress line that fills per key step and per detail inside
+  the current segment (`outline.ts` `progressAt`); `SchemaStrip`; `StepHeader`; the three
+  panes; `Footer` (Prev, a rail of key-step dots, Next). Before step 1 a non-empty
+  `description` renders as an `Intro` landing card: eyebrow, title, description, the key
+  steps with their stage and number of details, Start, keyboard legend, run metadata.
 - Navigation: Prev/Next walk the steps at the current step's level (deeper steps are
   skipped); Down enters the first detail of the current step and Up jumps to the step
-  that summarises it (`outline.ts`, mirroring `outline.py`). A "walk at N" selector
-  raises the level Next/Prev visit, so "walk at 3" is the full tour. The counter shows
-  the position among the steps visible at the current level, a badge shows the step's
-  level (named when `levels` is set), and the text pane header shows the chain of
-  summaries above a detail step. Keyboard: ← → (and space, PageUp/Down) at the current
-  level, ↓ ↑ between levels, Home/End. `?step=<id>` deep links (`<label>` and 1-based
-  numbers also work); the URL follows the current step. A non-empty `description`
-  becomes an intro view before step 1. With a single level, Up/Down and the selector
-  are hidden and the viewer behaves as before.
-- Schema pane: Mermaid 11 `render()` per step; the definition gets `classDef cw_active`
-  and `classDef cw_done` appended plus `class` lines for the current and the already
-  visited nodes. If the classes break parsing (a non-flowchart diagram), it falls back to
-  rendering the schema untouched and shows why. Clicking a node jumps to the first step
-  that highlights it. The SVG scales with the header height.
+  that summarises it (`outline.ts`, mirroring `outline.py`). The `Outline` drawer (`o`)
+  lists the steps as a tree with the current one marked, visited ones ticked and steps
+  deeper than the current level greyed; its level selector walks at that level, climbing
+  to the summary when the current step is deeper. Keyboard: ← → (and Space, PageUp/Down)
+  at the current level, ↓ ↑ between levels, Home/End, `1`..`9` level, `o` outline, `s`
+  schema, `c` output, `t` theme, `f` maximises the pane under the pointer, `?` opens the
+  shortcuts overlay, Esc restores a maximised pane or closes the outline, a menu or the
+  overlay.
+  `?step=<id>` deep links (`<label>` and 1-based numbers also work); the URL follows the
+  current step. With a single level, Up/Down and the selector are hidden.
+- Schema strip: a linear `flowchart LR` (what `schema=[...]` produces) is drawn as an
+  HTML stepper (`chain.ts`, `Stepper.tsx`): stages ahead outlined, visited ones muted
+  with a tick, the current one filled with the accent; data stores (`[( )]`) as dashed
+  pills. Any other schema is rendered once per recording and theme by Mermaid 11 with
+  `theme: 'base'` and variables from the tokens (`mermaid.ts`); node states are then
+  applied to the SVG (inline styles using the CSS variables, rounded rects, a tick badge
+  on visited nodes, a glow on the current one) without re-rendering, so the strip never
+  reflows between steps. Hovering a stage names its step; clicking opens the step, or a
+  menu of the stage's steps when there are several. The strip collapses (`s`) to one
+  line of stage names; labels are parsed from the Mermaid text (`schemaLabels.ts`).
 - Code pane: Shiki 3 fine-grained bundle (Python grammar, github-light/dark, JavaScript
-  regex engine, no wasm). Current line highlighted with a marker (▶ before, ✓ after,
-  ↩ return, ✗ crash), focus lines emphasised and the rest dimmed, current line scrolled
-  into view.
-- Objects pane: one tab per object, the `plot` entry first; the selected name is kept
-  across steps when the next step has it. Renderers for the seven kinds: table (sticky
-  header, dtypes, nulls in italics), array (stats tiles and preview grid with the slice
-  note), image (data URL), html (through DOMPurify), json (collapsible tree, open two
-  levels deep), text (with `note` and over-limit styling), error (message plus the names
-  that were available). A crash step shows the traceback as its first object.
-- Explanation pane: `react-markdown` with GFM. KaTeX is deferred: its fonts would add
-  more than a megabyte to every page.
-- Console: a toggle in the footer opens the program output captured since the previous
-  step; the button shows a dot when there is any.
-- Panes are resizable with a small custom splitter (no panel library); the theme follows
-  `prefers-color-scheme`.
+  regex engine). Every code window is tokenised once and cached (`highlight.ts`); the
+  whole recording is pre-tokenised in the background after the first render, so a step
+  never shows plain text. Header: file, function, line window and a chip saying where the
+  program is paused (before / after / returning / crashed, hit count). Current line
+  tinted with an accent bar in the gutter, focus lines marked with a rule and the rest
+  dimmed, current line centred in the code box (never the page). The program output
+  drawer (`c`, or the chip in the step header) docks under the code.
+- Right column: the explanation sits above the objects and sizes to its text (at most 45%
+  of the column); the splitter overrides it, double-click returns to automatic. Inline
+  code in the explanation that names a captured object is a chip: hovering it highlights
+  the tab, clicking opens it (`Md.tsx`). Objects: one tab per object with an icon for its
+  kind, the `plot` entry first; the chosen name is kept across steps. A Copy button gives
+  JSON, text, and tables or array previews as tab-separated text. Tables have zebra rows
+  and a sticky index column; figures sit in a padded card and open in a lightbox. Any
+  pane maximises from its header button or a double-click; Esc restores.
+- Theme: design tokens in `styles/tokens.css` (surfaces, one accent, current/focus,
+  status colours, type scale) with `data-theme` on `<html>`; `index.html` sets it before
+  paint from `localStorage` or `prefers-color-scheme`, `useTheme` keeps it current. The
+  preference (system / light / dark), the splitter positions, the outline and the schema
+  state persist in `localStorage` under `codewalk.*` (`prefs.ts`), guarded for `file://`.
+- Motion: a step change fades the explanation, the objects and a new code window in
+  (150 to 180 ms), the current line flashes briefly, the progress line, the rail dots
+  and the schema nodes transition; popovers, menus, the outline and the overlay enter
+  with the same short curves. `prefers-reduced-motion` cancels all of it, and
+  `codewalk screenshot` captures with animations disabled.
+- Responsive: under 1100px the outline overlays, the footer rail and button labels go;
+  under 900px the panes stack (explanation, objects, code), the main area scrolls and
+  every control is at least 44px tall.
+- Accessibility: landmarks (`header`, the schema `section`, `main`, `aside` for the
+  outline, `footer`), a polite live region announcing "Step n of m: title", `aria-current`
+  on the current stage (stepper, Mermaid node, collapsed strip), the current outline row
+  and the current rail dot. Everything works from the keyboard: Mermaid stages are
+  buttons (Tab, Enter), the object tabs follow the ARIA tabs pattern (← → Home End move
+  between tabs without changing the step), the splitters are focusable separators
+  (arrows resize by 2%, Home resets), the stage menu and the outline take the focus when
+  they open (↑ ↓ in the menu), the shortcuts overlay traps Tab and returns the focus on
+  close. Colour: `tests/test_tokens_contrast.py` checks every text pair of
+  `tokens.css` against WCAG AA (4.5:1, 3:1 for the large and non-text pairs) in both
+  themes; the accent is split into `--accent` (text) and `--accent-fill` (white text on
+  it) because in dark mode one blue cannot satisfy both. Known exception: 1px hairline
+  borders stay below the 3:1 non-text ratio by design; every bordered control also has
+  a text label or a fill that passes.
 - Build: `npm run build` type-checks and runs Vite with `vite-plugin-singlefile`, writing
-  one file to `src/codewalk/viewer/index.html` (about 4 MB, mostly Mermaid), which is
+  one file to `src/codewalk/viewer/index.html` (4.15 MB after the revamp, 4.09 MB
+  before it, almost all of it Mermaid; no runtime dependency was added), which is
   committed and shipped in the wheel, so `pip install` needs no Node. The template keeps
   `<script id="codewalk-data" type="application/json">__CODEWALK_DATA__</script>` and a
   `__CODEWALK_TITLE__` placeholder; `codewalk/build.py` replaces both, escaping `</` in
   the JSON so the data block cannot be closed early. In `vite dev` the app loads
-  `viewer/fixtures/steps.json` instead.
+  `viewer/fixtures/steps.json` instead (`.claude/launch.json` has a `viewer-dev` entry).
 
 ### 8.1 Automation hooks
 
-The viewer marks the root element with `data-step="<id>"` (`intro` before step 1) and the
-schema and code panes with `data-settled="true"` once their asynchronous rendering
-(Mermaid, Shiki) matches the current step. `codewalk screenshot` waits for these, for
-`document.fonts` and for every image to be decoded before capturing; other automation
-can do the same.
+The viewer marks the root element with `data-step="<id>"` (`intro` before step 1) and
+every pane that renders asynchronously (the schema, the code) with `data-settled="true"`
+once it matches the current step. `codewalk screenshot` waits for the step, then for every
+`[data-settled]` element to be `true`, for `document.fonts` and for every image to be
+decoded before capturing; other automation can do the same.
 
 ## 9. CLI
 

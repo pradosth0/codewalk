@@ -1,0 +1,94 @@
+/* Design tokens. Colours are semantic; the theme is `data-theme` on <html> (set by the
+   bootstrap script in index.html before paint and by useTheme afterwards). */
+
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+
+  --text-xs: 12px;
+  --text-sm: 13px;
+  --text-md: 14px;
+  --text-lg: 15px;
+  --text-xl: 17px;
+  --text-2xl: 22px;
+  --code-size: 12.5px;
+
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.06);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.14);
+
+  --ease: 160ms ease;
+  --topbar-h: 44px;
+  --footer-h: 52px;
+  --outline-w: 288px;
+
+  /* light */
+  --bg-0: #ffffff;
+  --bg-1: #f7f8fa;
+  --bg-2: #eef0f3;
+  --bg-3: #e2e5ea;
+  --fg: #1b1f24;
+  --fg-muted: #525b66;
+  --fg-faint: #687078;
+  --border: #e3e6ea;
+  --border-strong: #c8cdd4;
+
+  /* --accent is for text and outlines; --accent-fill carries white text (buttons, the
+     current stage). They differ in dark mode, where one blue cannot do both. */
+  --accent: #2563eb;
+  --accent-fill: #2563eb;
+  --accent-fg: #ffffff;
+  --accent-soft: #ebf1fe;
+  --accent-ring: rgba(37, 99, 235, 0.35);
+
+  --current-bg: rgba(37, 99, 235, 0.11);
+  --focus-rule: #c8cdd4;
+  --dim-opacity: 0.62;
+
+  --error: #c62828;
+  --warn: #b45309;
+  --ok: #1f8a4c;
+
+  --plot-bg: #ffffff;
+  color-scheme: light;
+}
+
+:root[data-theme='dark'] {
+  --bg-0: #0f1115;
+  --bg-1: #151821;
+  --bg-2: #1b1f28;
+  --bg-3: #262b35;
+  --fg: #e6e8eb;
+  --fg-muted: #9aa3ad;
+  --fg-faint: #7d8794;
+  --border: #262b35;
+  --border-strong: #3a4150;
+
+  --accent: #5b8def;
+  --accent-fill: #2563eb;
+  --accent-fg: #ffffff;
+  --accent-soft: #172540;
+  --accent-ring: rgba(91, 141, 239, 0.45);
+
+  --current-bg: rgba(91, 141, 239, 0.16);
+  --focus-rule: #3a4150;
+  --dim-opacity: 0.55;
+
+  --error: #f28b82;
+  --warn: #f5b942;
+  --ok: #4ade80;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 8px 24px rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}

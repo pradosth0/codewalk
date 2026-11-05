@@ -87,7 +87,8 @@ walkthrough.step(
 
 Levels of detail: the viewer walks one level at a time. Next and Prev skip deeper steps,
 Down (↓) enters the details of the current step, Up (↑) returns to the step that
-summarises them, and a "walk at" selector visits everything up to a level. A key step
+summarises them, and the outline (`o`) lists every step with a selector for the level to
+walk at. A key step
 owns the deeper steps recorded before it, so it sits where a stage's result is visible;
 `parent="id"` overrides that when needed. `codewalk screenshot out --all --level 1`
 renders the overview only.
@@ -136,10 +137,12 @@ works for any agent.
   `image`, `html`, `json`, `text`, `error`) without importing any optional library.
 - `codewalk.build` embeds the recording into the viewer template; `codewalk.screenshot`
   drives the page with Playwright and waits for the panes to settle.
-- The viewer (`viewer/`, Vite + React + TypeScript) renders the schema with Mermaid and
-  the code with Shiki, follows the system colour scheme, supports keyboard navigation
-  (arrows: ← → at the current level, ↓ ↑ between levels), `?step=<id>` deep links, and
-  jumps to a step when a schema node is clicked.
+- The viewer (`viewer/`, Vite + React + TypeScript) draws a linear schema as a row of
+  stages and any other schema with Mermaid, and renders the code with Shiki. It opens on an introduction page, has an outline drawer, a theme
+  control (system, light, dark), keyboard navigation (← → at the current level, ↓ ↑
+  between levels, `o` outline, `c` program output, `s` schema, `?` for the full list),
+  `?step=<id>` deep links,
+  and jumps to a step when a schema node is clicked.
 
 ## Development
 

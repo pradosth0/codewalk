@@ -1,0 +1,467 @@
+/* Panes: shared frame, code, objects (tabs), explanation, console drawer, splitters. */
+
+.pane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--bg-0);
+}
+
+.pane-header {
+  flex: none;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  min-height: 34px;
+  padding: 4px 6px 4px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
+  font-size: var(--text-xs);
+  color: var(--fg-muted);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.pane-header .grow {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pane-header .file {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--fg);
+}
+
+.pane-header .label {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.pane-header .label svg {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+  margin-right: 4px;
+}
+
+.pane-max {
+  opacity: 0;
+  transition: opacity var(--ease);
+}
+
+.pane:hover .pane-max,
+.pane-max:focus-visible,
+.pane-max.on {
+  opacity: 1;
+}
+
+.empty-hint {
+  padding: 24px 16px;
+  color: var(--fg-muted);
+}
+
+.splitter {
+  background: transparent;
+  position: relative;
+  z-index: 1;
+  transition: background var(--ease);
+}
+
+.splitter::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--border);
+}
+
+.splitter.horizontal {
+  cursor: col-resize;
+}
+
+.splitter.horizontal::after {
+  left: 2px;
+  right: 3px;
+}
+
+.splitter.vertical {
+  cursor: row-resize;
+}
+
+.splitter.vertical::after {
+  top: 2px;
+  bottom: 3px;
+}
+
+.splitter:hover::after,
+.splitter.dragging::after,
+.splitter:focus-visible::after {
+  background: var(--accent);
+}
+
+.splitter:focus-visible {
+  outline: none;
+}
+
+/* ------------------------------------------------------------- code */
+
+.code-scroll {
+  position: relative;
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 6px 0;
+}
+
+.code-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-family: var(--font-mono);
+  font-size: var(--code-size);
+  line-height: 1.55;
+}
+
+.code-table td {
+  padding: 0 12px 0 0;
+  vertical-align: top;
+  white-space: pre;
+}
+
+.code-table .ln {
+  text-align: right;
+  color: var(--fg-faint);
+  user-select: none;
+  width: 1%;
+  padding-left: 14px;
+  padding-right: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.code-table .marker {
+  width: 1%;
+  color: var(--accent);
+  font-weight: 700;
+  user-select: none;
+  padding-right: 8px;
+  font-size: 11px;
+}
+
+.code-table tr.current td {
+  background: var(--current-bg);
+  animation: line-in 260ms ease-out;
+}
+
+@keyframes line-in {
+  from {
+    background-color: var(--accent-ring);
+  }
+}
+
+.code-scroll.enter {
+  animation: fade-in 150ms ease-out;
+}
+
+.code-table tr.current td.ln {
+  color: var(--accent);
+  font-weight: 700;
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.code-table tr.focus td.ln {
+  box-shadow: inset 3px 0 0 var(--focus-rule);
+}
+
+.code-table tr.focus.current td.ln {
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+
+.code-table tr.dim td.src,
+.code-table tr.dim td.ln {
+  opacity: var(--dim-opacity);
+}
+
+.tok {
+  color: var(--shiki-light);
+  font-style: var(--shiki-light-font-style, inherit);
+  font-weight: var(--shiki-light-font-weight, inherit);
+}
+
+:root[data-theme='dark'] .tok {
+  color: var(--shiki-dark);
+  font-style: var(--shiki-dark-font-style, inherit);
+  font-weight: var(--shiki-dark-font-weight, inherit);
+}
+
+/* console drawer, under the code */
+
+.console-drawer {
+  flex: 0 0 auto;
+  max-height: 40%;
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--border);
+}
+
+.console {
+  margin: 0;
+  overflow: auto;
+  padding: 8px 14px;
+  background: var(--bg-1);
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-size: var(--text-xs);
+}
+
+/* ------------------------------------------------------------- objects */
+
+.tabs {
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 6px 6px 0 10px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-1);
+  overflow-x: auto;
+  user-select: none;
+}
+
+.tabs .grow {
+  flex: 1;
+}
+
+.tab {
+  flex: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: var(--fg-muted);
+  font-size: var(--text-sm);
+  padding: 5px 10px 6px;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.tab:hover {
+  color: var(--fg);
+}
+
+.tab.active {
+  background: var(--bg-0);
+  color: var(--fg);
+  border-color: var(--border);
+  font-weight: 600;
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.tab svg {
+  width: 13px;
+  height: 13px;
+  opacity: 0.55;
+}
+
+.tab.active svg {
+  opacity: 0.8;
+  color: var(--accent);
+}
+
+.tab.hint {
+  background: var(--accent-soft);
+  color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-ring);
+}
+
+.tabs .pane-max {
+  margin-bottom: 4px;
+}
+
+.object-body {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 10px 14px;
+  display: flex;
+  flex-direction: column;
+  animation: fade-in 150ms ease-out;
+}
+
+.object-body > * {
+  flex: 0 0 auto;
+}
+
+/* images shrink to fit the pane (no scrolling needed to see a whole plot) */
+.object-body > .image-view {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.expr {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 24px;
+  margin-bottom: 8px;
+  color: var(--fg-muted);
+  font-size: var(--text-xs);
+}
+
+.expr .grow {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.copy-btn {
+  font-size: var(--text-xs);
+  padding: 2px 8px;
+  height: 24px;
+  opacity: 0;
+  transition: opacity var(--ease);
+}
+
+.object-body:hover .copy-btn,
+.copy-btn:focus-visible,
+.copy-btn.done {
+  opacity: 1;
+}
+
+.copy-btn.done {
+  color: var(--ok);
+}
+
+.expr code {
+  font-size: 11.5px;
+  color: var(--fg);
+  background: var(--bg-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+
+/* ------------------------------------------------------------- explanation */
+
+.pane.text .markdown {
+  overflow: auto;
+  flex: 1;
+  min-height: 0;
+  padding: 12px 18px 14px;
+  animation: rise-in 180ms ease-out;
+}
+
+.markdown {
+  font-size: var(--text-lg);
+  line-height: 1.6;
+  max-width: 70ch;
+}
+
+.markdown > :first-child {
+  margin-top: 0;
+}
+
+.markdown > :last-child {
+  margin-bottom: 0;
+}
+
+.markdown h1,
+.markdown h2,
+.markdown h3 {
+  font-size: 1.05em;
+  margin: 1.1em 0 0.4em;
+}
+
+.markdown p {
+  margin: 0 0 0.75em;
+}
+
+.markdown ul,
+.markdown ol {
+  margin: 0 0 0.75em;
+  padding-left: 1.4em;
+}
+
+.markdown li {
+  margin: 0.15em 0;
+}
+
+.markdown code {
+  background: var(--bg-2);
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-size: 0.86em;
+}
+
+.markdown pre {
+  background: var(--bg-1);
+  border: 1px solid var(--border);
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  overflow: auto;
+}
+
+.markdown pre code {
+  background: transparent;
+  padding: 0;
+}
+
+.markdown table {
+  border-collapse: collapse;
+  font-size: 0.93em;
+}
+
+.markdown td,
+.markdown th {
+  border: 1px solid var(--border);
+  padding: 3px 9px;
+}
+
+.markdown blockquote {
+  margin: 0 0 0.75em;
+  padding: 2px 12px;
+  border-left: 3px solid var(--border-strong);
+  color: var(--fg-muted);
+}
+
+.markdown strong {
+  font-weight: 650;
+}
+
+/* inline code naming a captured object: a chip that opens its tab */
+.obj-ref {
+  display: inline;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  font: inherit;
+  vertical-align: baseline;
+}
+
+.obj-ref code {
+  background: var(--accent-soft);
+  color: var(--accent);
+  border-bottom: 1px solid var(--accent-ring);
+  border-radius: 4px 4px 2px 2px;
+  transition:
+    background var(--ease),
+    color var(--ease);
+}
+
+.obj-ref:hover code,
+.obj-ref:focus-visible code {
+  background: var(--accent-fill);
+  color: var(--accent-fg);
+}

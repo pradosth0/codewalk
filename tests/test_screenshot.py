@@ -105,3 +105,20 @@ def test_screenshot_single_step_to_file_and_dark(mini_page, tmp_path):
     assert bad.exit_code == 1 and "pass a folder" in bad.output
     none = runner.invoke(app, ["screenshot", str(mini_page)])
     assert none.exit_code == 1 and "nothing to capture" in none.output
+
+
+def test_screenshot_branched_schema_renders_with_mermaid(mini_page, tmp_path):
+    # A linear schema is drawn as an HTML stepper; anything else goes through Mermaid.
+    rec = json.loads((mini_page / "steps.json").read_text())
+    rec["schema"]["source"] = (
+        "flowchart LR\n  load[Load] --> transform[Transform] --> accumulate[Accumulate] --> score[Score]\n  load -.-> score\n"
+    )
+    out = tmp_path / "branched"
+    out.mkdir()
+    (out / "steps.json").write_text(json.dumps(rec))
+    built = runner.invoke(app, ["build", str(out / "steps.json")])
+    assert built.exit_code == 0, built.output
+    result = runner.invoke(app, ["screenshot", str(out), "--step", "total", "-o", str(out / "total.png")])
+    assert result.exit_code == 0, result.output
+    assert png_size(out / "total.png") == (1440, 900)
+    assert "page error" not in result.output

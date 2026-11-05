@@ -1,41 +1,29 @@
-import Markdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
+import { useMemo } from 'react'
+import { Md, type ObjectRefs } from './Md'
+import { PaneHeader } from './PaneHeader'
 
 interface Props {
+  stepId: string
   text: string
-  title: string
-  intro: boolean
-  crumbs?: string[]
+  objectNames: string[]
+  onSelectObject: (name: string) => void
+  onHoverObject: (name: string | null) => void
+  maximized: boolean
+  onMaximize: () => void
 }
 
-export function TextPane({ text, title, intro, crumbs = [] }: Props) {
+export function TextPane({ stepId, text, objectNames, onSelectObject, onHoverObject, maximized, onMaximize }: Props) {
+  const refs = useMemo<ObjectRefs>(
+    () => ({ names: new Set(objectNames), onSelect: onSelectObject, onHover: onHoverObject }),
+    [objectNames, onSelectObject, onHoverObject],
+  )
   return (
-    <section className="pane text">
-      <div className="pane-header">
-        {crumbs.length > 0 && (
-          <span className="crumbs muted small" title="The steps that summarise this one">
-            {crumbs.map((c, i) => (
-              <span key={i}>
-                {c} <span className="crumb-sep">›</span>{' '}
-              </span>
-            ))}
-          </span>
-        )}
-        <span className="file">{intro ? 'Introduction' : title}</span>
-      </div>
-      <div className="markdown">
-        {text.trim() ? (
-          <Markdown
-            remarkPlugins={[remarkGfm]}
-            components={{
-              a: ({ node: _node, ...props }) => <a {...props} target="_blank" rel="noreferrer" />,
-            }}
-          >
-            {text}
-          </Markdown>
-        ) : (
-          <span className="muted">no explanation for this step</span>
-        )}
+    <section className="pane text" data-pane="text">
+      <PaneHeader maximized={maximized} onMaximize={onMaximize}>
+        <span className="label grow">Explanation</span>
+      </PaneHeader>
+      <div className="markdown" key={stepId}>
+        {text.trim() ? <Md refs={refs}>{text}</Md> : <span className="faint">The author left no explanation for this step.</span>}
       </div>
     </section>
   )

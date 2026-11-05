@@ -102,8 +102,8 @@ record.
 Readers start with the key steps and go deeper only where they need to, without asking
 you again. Every step has a `level` (default 2); the viewer walks one level at a time:
 **Next/Prev** skip deeper steps, **Down** (↓) enters the details of the current step,
-**Up** (↑) returns to the step that summarises them, and a "walk at" selector visits
-every step up to a level. Unless the person asks for something else, produce three:
+**Up** (↑) returns to the step that summarises them, and the outline drawer (`o`) has a
+selector for the level to walk at. Unless the person asks for something else, produce three:
 
 | Level | For whom | What it holds |
 |---|---|---|

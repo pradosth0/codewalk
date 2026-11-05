@@ -1,40 +1,50 @@
 import mermaid from 'mermaid'
 
+/* Mermaid is themed from the design tokens (tokens.css) and rendered once per recording
+   and theme; node states (current, visited) are applied to the SVG afterwards, see
+   SchemaPane. The hex values mirror tokens.css because Mermaid cannot read CSS variables. */
+const THEME = {
+  light: { node: '#ffffff', cluster: '#f7f8fa', fg: '#1b1f24', border: '#c8cdd4', line: '#687078' },
+  dark: { node: '#1b1f28', cluster: '#151821', fg: '#e6e8eb', border: '#3a4150', line: '#7d8794' },
+}
+
+const FONT = 'ui-sans-serif, system-ui, -apple-system, sans-serif'
+
 let initializedDark: boolean | null = null
 let counter = 0
 
 function init(dark: boolean): void {
   if (initializedDark === dark) return
+  const t = dark ? THEME.dark : THEME.light
   mermaid.initialize({
     startOnLoad: false,
-    theme: dark ? 'dark' : 'neutral',
+    theme: 'base',
     securityLevel: 'strict',
-    fontFamily: 'ui-sans-serif, system-ui, -apple-system, sans-serif',
-    flowchart: { htmlLabels: true, curve: 'basis', padding: 8 },
+    fontFamily: FONT,
+    themeVariables: {
+      fontFamily: FONT,
+      fontSize: '14px',
+      background: 'transparent',
+      primaryColor: t.node,
+      primaryTextColor: t.fg,
+      primaryBorderColor: t.border,
+      secondaryColor: t.cluster,
+      secondaryTextColor: t.fg,
+      secondaryBorderColor: t.border,
+      tertiaryColor: t.cluster,
+      tertiaryTextColor: t.fg,
+      tertiaryBorderColor: t.border,
+      lineColor: t.line,
+      textColor: t.fg,
+      nodeTextColor: t.fg,
+      titleColor: t.fg,
+      clusterBkg: t.cluster,
+      clusterBorder: t.border,
+      edgeLabelBackground: t.cluster,
+    },
+    flowchart: { htmlLabels: true, curve: 'basis', padding: 8, nodeSpacing: 36, rankSpacing: 40 },
   })
   initializedDark = dark
-}
-
-const STYLES = {
-  light: {
-    active: 'fill:#2563eb,stroke:#1e40af,color:#ffffff,stroke-width:2px',
-    done: 'fill:#dbeafe,stroke:#93c5fd,color:#1e3a8a',
-  },
-  dark: {
-    active: 'fill:#2563eb,stroke:#93c5fd,color:#ffffff,stroke-width:2px',
-    done: 'fill:#1e3a5f,stroke:#3b82f6,color:#dbeafe',
-  },
-}
-
-async function render(definition: string): Promise<string> {
-  const id = `cw-schema-${++counter}`
-  try {
-    const { svg } = await mermaid.render(id, definition)
-    return svg
-  } finally {
-    document.getElementById('d' + id)?.remove()
-    document.getElementById(id)?.remove()
-  }
 }
 
 export interface SchemaRender {
@@ -42,25 +52,17 @@ export interface SchemaRender {
   error?: string
 }
 
-/** Render the schema with the current node(s) highlighted and earlier ones marked as done. */
-export async function renderSchema(
-  source: string,
-  active: string[],
-  done: string[],
-  dark: boolean,
-): Promise<SchemaRender> {
+/** Render the schema as it was written; states are applied to the DOM afterwards. */
+export async function renderSchema(source: string, dark: boolean): Promise<SchemaRender> {
   init(dark)
-  const styles = dark ? STYLES.dark : STYLES.light
-  const lines = [source.trimEnd(), `classDef cw_active ${styles.active};`, `classDef cw_done ${styles.done};`]
-  if (done.length) lines.push(`class ${done.join(',')} cw_done;`)
-  if (active.length) lines.push(`class ${active.join(',')} cw_active;`)
+  const id = `cw-schema-${++counter}`
   try {
-    return { svg: await render(lines.join('\n')) }
+    const { svg } = await mermaid.render(id, source)
+    return { svg }
   } catch (e) {
-    try {
-      return { svg: await render(source), error: `could not apply highlights: ${String(e)}` }
-    } catch (e2) {
-      return { svg: '', error: String(e2) }
-    }
+    return { svg: '', error: String(e) }
+  } finally {
+    document.getElementById('d' + id)?.remove()
+    document.getElementById(id)?.remove()
   }
 }
